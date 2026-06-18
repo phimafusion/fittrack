@@ -46,6 +46,7 @@ QUnit.module('FitTrack Test Suite', hooks => {
   hooks.afterEach(() => {
     localStorage.clear();
     initDB();
+    hideRestTimerOverlay();
   });
 
   QUnit.module('Database and Storage (db.js)', () => {
