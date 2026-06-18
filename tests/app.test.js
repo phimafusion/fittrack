@@ -110,6 +110,52 @@ QUnit.module('FitTrack Test Suite', hooks => {
       workouts = getWorkouts();
       assert.equal(workouts.length, 0, 'Workout log removed');
     });
+
+    QUnit.test('Database Migration & Translation (v3)', assert => {
+      // 1. Setup legacy English exercises & workouts in localStorage
+      localStorage.clear();
+      
+      const legacyExercises = [
+        { id: 'custom_biceps', name: 'Concentration Curls', category: 'arms' },
+        { id: 'bench_press', name: 'bench press', category: 'chest' }
+      ];
+      localStorage.setItem('exercises', JSON.stringify(legacyExercises));
+
+      const legacyWorkouts = [
+        {
+          id: 'wo_legacy_1',
+          name: 'morning workout',
+          exercises: [
+            { id: 'bench_press', name: 'bench press', category: 'chest', sets: [] }
+          ]
+        }
+      ];
+      localStorage.setItem('workouts', JSON.stringify(legacyWorkouts));
+
+      // Remove migration flag to force migration
+      localStorage.removeItem('db_migrated_v3');
+
+      // 2. Run initialization
+      initDB();
+
+      // 3. Verify exercises category translation (e.g., 'arms' -> 'Arme')
+      const exercises = getExercises();
+      const customEx = exercises.find(e => e.id === 'custom_biceps');
+      assert.ok(customEx, 'Custom exercise preserved');
+      assert.equal(customEx.category, 'Arme', 'Category migrated to German');
+
+      // 4. Verify default exercises were reset/updated to defaults
+      const bp = exercises.find(e => e.id === 'bench_press');
+      assert.equal(bp.name, 'Bankdrücken', 'Default exercise name migrated');
+      assert.equal(bp.category, 'Brust', 'Default exercise category migrated');
+
+      // 5. Verify workouts translation
+      const workouts = getWorkouts();
+      assert.equal(workouts.length, 1, 'Workout preserved');
+      assert.equal(workouts[0].name, 'Morgendliches Training', 'Workout name migrated');
+      assert.equal(workouts[0].exercises[0].name, 'Bankdrücken', 'Workout exercise name migrated');
+      assert.equal(workouts[0].exercises[0].category, 'Brust', 'Workout exercise category migrated');
+    });
   });
 
   QUnit.module('Application Logic & Workouts (app.js)', () => {
