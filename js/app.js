@@ -290,12 +290,14 @@ export function toggleCompleteSet(exerciseIndex, setIndex) {
   const set = ex.sets[setIndex];
   set.completed = !set.completed;
   saveActiveWorkoutState();
+  
   if (isBrowserEnv && DOM.workoutExercisesList) {
     renderActiveWorkout();
-    if (set.completed) {
-      const defaultDuration = getDefaultRestDuration();
-      startRestTimer(defaultDuration, ex.name);
-    }
+  }
+  
+  if (isBrowserEnv && set.completed) {
+    const defaultDuration = getDefaultRestDuration();
+    startRestTimer(defaultDuration, ex.name);
   }
 }
 
