@@ -1,0 +1,221 @@
+/**
+ * app.test.js
+ * QUnit test suite for FitTrack database and application logic.
+ */
+
+import {
+  initDB,
+  getExercises,
+  addExercise,
+  deleteExercise,
+  getWorkouts,
+  saveWorkout,
+  deleteWorkout,
+  updateWorkout
+} from '../js/db.js';
+
+import {
+  activeWorkout,
+  startWorkout,
+  cancelWorkout,
+  finishWorkout,
+  addExerciseToActiveWorkout,
+  deleteExerciseFromWorkout,
+  addSetToExercise,
+  deleteSetFromExercise,
+  toggleCompleteSet,
+  formatDuration,
+  editWorkout
+} from '../js/app.js';
+
+QUnit.module('FitTrack Test Suite', hooks => {
+
+  // Isolate localStorage before and after each test
+  hooks.beforeEach(() => {
+    localStorage.clear();
+    initDB();
+  });
+
+  hooks.afterEach(() => {
+    localStorage.clear();
+    initDB();
+  });
+
+  QUnit.module('Database and Storage (db.js)', () => {
+    
+    QUnit.test('Database Initialization', assert => {
+      const exercises = getExercises();
+      assert.ok(Array.isArray(exercises), 'Exercises should be an array');
+      assert.ok(exercises.length > 10, 'Should load preloaded exercises list');
+      
+      const benchPress = exercises.find(e => e.id === 'bench_press');
+      assert.ok(benchPress, 'Should contain Bench Press');
+      assert.equal(benchPress.name, 'Bankdrücken', 'Exercise name match');
+      assert.equal(benchPress.category, 'Brust', 'Exercise category match');
+    });
+
+    QUnit.test('Custom Exercise Addition', assert => {
+      const initialCount = getExercises().length;
+      const newEx = addExercise('Beinpresse schräg', 'Beine');
+      
+      assert.ok(newEx, 'Custom exercise should be returned');
+      assert.equal(newEx.name, 'Beinpresse schräg', 'Name matches custom name');
+      assert.equal(newEx.category, 'Beine', 'Category matches custom category');
+      assert.ok(newEx.id, 'ID is generated');
+      
+      const exercises = getExercises();
+      assert.equal(exercises.length, initialCount + 1, 'Exercises count increases by 1');
+      assert.ok(exercises.some(e => e.id === newEx.id), 'Custom exercise is stored');
+    });
+
+    QUnit.test('Default Exercise Deletion Restraint', assert => {
+      const result = deleteExercise('bench_press');
+      assert.notOk(result, 'Deleting default exercise should return false');
+      assert.ok(getExercises().some(e => e.id === 'bench_press'), 'Default exercise is preserved');
+    });
+
+    QUnit.test('Custom Exercise Deletion', assert => {
+      const newEx = addExercise('Preacher Curls', 'Arme');
+      const result = deleteExercise(newEx.id);
+      
+      assert.ok(result, 'Deleting custom exercise should return true');
+      assert.notOk(getExercises().some(e => e.id === newEx.id), 'Custom exercise is removed');
+    });
+
+    QUnit.test('Completed Workout Logging & History Delete', assert => {
+      const mockWorkout = {
+        id: 'wo_qtest_1',
+        name: 'Rückentraining',
+        date: new Date().toISOString(),
+        duration: 50,
+        volume: 4500,
+        exercises: [
+          {
+            id: 'pullups',
+            name: 'Klimmzüge',
+            category: 'Rücken',
+            sets: [{ weight: 0, reps: 12, completed: true }]
+          }
+        ]
+      };
+
+      saveWorkout(mockWorkout);
+      
+      let workouts = getWorkouts();
+      assert.equal(workouts.length, 1, 'Workout log saved');
+      assert.equal(workouts[0].name, 'Rückentraining', 'Workout name matches');
+      assert.equal(workouts[0].volume, 4500, 'Workout volume matches');
+      
+      deleteWorkout('wo_qtest_1');
+      workouts = getWorkouts();
+      assert.equal(workouts.length, 0, 'Workout log removed');
+    });
+  });
+
+  QUnit.module('Application Logic & Workouts (app.js)', () => {
+
+    QUnit.test('Duration Formatter', assert => {
+      assert.equal(formatDuration(25 * 1000), '00:25', 'Formats seconds');
+      assert.equal(formatDuration((8 * 60 + 19) * 1000), '08:19', 'Formats minutes');
+      assert.equal(formatDuration((3 * 3600 + 40 * 60 + 5) * 1000), '03:40:05', 'Formats hours');
+    });
+
+    QUnit.test('Workout State Lifecycle', assert => {
+      // Mock window.confirm (since cancelWorkout triggers confirm prompt)
+      const originalConfirm = window.confirm;
+      window.confirm = () => true;
+
+      startWorkout();
+      assert.ok(localStorage.getItem('activeWorkout'), 'Workout state saved to storage');
+
+      cancelWorkout();
+      assert.notOk(localStorage.getItem('activeWorkout'), 'Workout state cleared from storage');
+
+      window.confirm = originalConfirm;
+    });
+
+    QUnit.test('Set Operations in Active Workout', assert => {
+      startWorkout();
+
+      const deadlift = { id: 'deadlift', name: 'Kreuzheben', category: 'Rücken' };
+      addExerciseToActiveWorkout(deadlift);
+
+      let active = JSON.parse(localStorage.getItem('activeWorkout'));
+      assert.equal(active.exercises.length, 1, 'Deadlift added to active workout');
+      assert.equal(active.exercises[0].sets.length, 1, 'Default set created');
+
+      // Add Set
+      addSetToExercise(0);
+      active = JSON.parse(localStorage.getItem('activeWorkout'));
+      assert.equal(active.exercises[0].sets.length, 2, 'Second set added');
+
+      // Toggle Set 1 Complete
+      toggleCompleteSet(0, 0);
+      active = JSON.parse(localStorage.getItem('activeWorkout'));
+      assert.ok(active.exercises[0].sets[0].completed, 'Set 1 is completed');
+
+      // Delete Set 2
+      deleteSetFromExercise(0, 1);
+      active = JSON.parse(localStorage.getItem('activeWorkout'));
+      assert.equal(active.exercises[0].sets.length, 1, 'Set 2 removed');
+
+      // Delete Exercise
+      deleteExerciseFromWorkout(0);
+      active = JSON.parse(localStorage.getItem('activeWorkout'));
+      assert.equal(active.exercises.length, 0, 'Exercise removed');
+
+      localStorage.removeItem('activeWorkout');
+    });
+
+    QUnit.test('Edit Workout Lifecycle', assert => {
+      // 1. Create a workout and save to history
+      const originalWorkout = {
+        id: 'wo_edit_test',
+        name: 'Originaler Trainingsname',
+        date: new Date().toISOString(),
+        duration: 40,
+        volume: 1000,
+        exercises: [
+          { id: 'bench_press', name: 'Bankdrücken', category: 'Brust', sets: [{ weight: 50, reps: 10, completed: true }] }
+        ]
+      };
+      saveWorkout(originalWorkout);
+
+      // Verify it is in history
+      let workouts = getWorkouts();
+      assert.equal(workouts.length, 1);
+      assert.equal(workouts[0].name, 'Originaler Trainingsname');
+
+      // 2. Trigger editWorkout
+      editWorkout(originalWorkout);
+
+      // Verify it loads correctly into active state with isEditing flag
+      let session = JSON.parse(localStorage.getItem('activeWorkout'));
+      assert.ok(session.isEditing, 'activeWorkout is marked as editing');
+      assert.equal(session.id, 'wo_edit_test', 'Keeps original ID');
+
+      // 3. Make changes: change name, add a set
+      addSetToExercise(0); // Add second set
+      activeWorkout.name = 'Geänderter Trainingsname';
+      activeWorkout.exercises[0].sets[1].weight = 60;
+      activeWorkout.exercises[0].sets[1].reps = 8;
+      activeWorkout.exercises[0].sets[1].completed = true;
+
+      // 4. Finish/save the edited workout
+      finishWorkout();
+
+      // Verify the active state is cleared
+      assert.notOk(localStorage.getItem('activeWorkout'), 'activeWorkout state cleared');
+
+      // Verify history is updated in-place (still length 1, but updated)
+      workouts = getWorkouts();
+      assert.equal(workouts.length, 1, 'Still only 1 workout in history');
+      assert.equal(workouts[0].name, 'Geänderter Trainingsname', 'Workout name updated');
+      assert.equal(workouts[0].exercises[0].sets.length, 2, 'Sets count increased to 2');
+      assert.equal(workouts[0].volume, 980, 'Volume recalculated correctly (50*10 + 60*8 = 980)');
+    });
+  });
+});
+
+// Start QUnit manually after ES module registration
+QUnit.start();

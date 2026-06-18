@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FitTrack - Fitness-Tracker</title>
+  <meta name="description" content="Ein erstklassiger mobiler Fitness-Tracker zum Erfassen von Sätzen, Wiederholungen und Gewichten offline.">
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Core Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Firebase SDKs (v9+ compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header>
+      <div class="header-logo-title">
+        <img src="icons/icon-192.png" alt="FitTrack Logo" class="app-logo">
+        <h1>FitTrack</h1>
+      </div>
+      <div id="workout-timer" class="timer-badge" style="display: none;">
+        <i class="fa-regular fa-clock"></i>
+        <span id="timer-text">00:00</span>
+      </div>
+    </header>
+
+    <!-- 1. Active Workout View -->
+    <main id="view-workout" class="view active">
+      <!-- Empty State (No Active Workout) -->
+      <div id="workout-empty-state" class="empty-state">
+        <img src="icons/icon-192.png" alt="FitTrack Logo" class="empty-state-logo">
+        <h3>Kein aktives Training</h3>
+        <p>Bereit fürs Gym? Starte ein neues Training, um deinen Fortschritt aufzuzeichnen.</p>
+        <button id="btn-start-workout" class="btn btn-primary">
+          <i class="fa-solid fa-play"></i> Neues Training starten
+        </button>
+      </div>
+
+      <!-- Active Workout Session UI -->
+      <div id="workout-active-ui" style="display: none;">
+        <div class="workout-header">
+          <div class="workout-title-row">
+            <input type="text" id="workout-name-input" value="Training" aria-label="Name des Trainings">
+            <button id="btn-cancel-workout" class="btn btn-danger btn-sm" title="Training verwerfen">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+          <div class="workout-meta">
+            <span><i class="fa-solid fa-calendar-days"></i> Heute</span>
+            <span><i class="fa-solid fa-layer-group"></i> <span id="workout-exercise-count">0</span> Übungen</span>
+          </div>
+        </div>
+
+        <!-- Exercises list of the current workout -->
+        <div id="workout-exercises-list"></div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px;">
+          <button id="btn-add-exercise-trigger" class="btn btn-secondary">
+            <i class="fa-solid fa-plus"></i> Übung hinzufügen
+          </button>
+          <button id="btn-finish-workout" class="btn btn-primary">
+            <i class="fa-solid fa-circle-check"></i> Training abschließen
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- 2. History View -->
+    <main id="view-history" class="view">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px;">Trainingsverlauf</h2>
+      
+      <div id="history-empty-state" class="empty-state">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <h3>Noch keine Trainings aufgezeichnet</h3>
+        <p>Deine beendeten Einheiten werden hier angezeigt. Bleib dran!</p>
+      </div>
+
+      <div id="history-list" class="history-list" style="display: none;"></div>
+    </main>
+
+    <!-- 3. Exercises Library View -->
+    <main id="view-exercises" class="view">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="font-size: 1.25rem; font-weight: 700;">Übungsdatenbank</h2>
+        <button id="btn-create-exercise-modal-trigger" class="btn btn-secondary btn-sm">
+          <i class="fa-solid fa-plus"></i> Eigene
+        </button>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="search-container">
+        <div class="search-input-wrapper">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="exercise-search-input" class="search-input" placeholder="Übung suchen...">
+        </div>
+      </div>
+
+      <div id="category-filters-container" class="category-filters">
+        <span class="filter-badge active" data-category="all">Alle</span>
+        <span class="filter-badge" data-category="brust">Brust</span>
+        <span class="filter-badge" data-category="rücken">Rücken</span>
+        <span class="filter-badge" data-category="beine">Beine</span>
+        <span class="filter-badge" data-category="schultern">Schultern</span>
+        <span class="filter-badge" data-category="arme">Arme</span>
+        <span class="filter-badge" data-category="bauch">Bauch</span>
+      </div>
+
+      <div id="exercises-list" class="exercises-list"></div>
+    </main>
+
+    <!-- 4. Profile View -->
+    <main id="view-profile" class="view">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px;">Mein Profil</h2>
+      
+      <!-- Profile Card (Logged In) -->
+      <div id="profile-logged-in" style="display: none;">
+        <div class="profile-card">
+          <div class="profile-avatar">
+            <i class="fa-solid fa-user-check"></i>
+          </div>
+          <div class="profile-info">
+            <span id="profile-email" class="profile-username">user@example.com</span>
+            <span class="profile-status"><i class="fa-solid fa-cloud-arrow-up"></i> Cloud-Synchronisierung aktiv</span>
+          </div>
+        </div>
+        <button id="btn-logout" class="btn btn-danger" style="margin-top: 20px;">
+          <i class="fa-solid fa-right-from-bracket"></i> Abmelden
+        </button>
+      </div>
+
+      <!-- Auth Form Card (Logged Out) -->
+      <div id="profile-logged-out" style="display: block;">
+        <div class="auth-card">
+          <h3>Mit Cloud synchronisieren</h3>
+          <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 20px;">
+            Melde dich an, um deine Trainingseinheiten in der Cloud zu sichern und auf allen Geräten zu synchronisieren.
+          </p>
+
+          <form id="auth-form" onsubmit="return false;">
+            <div class="form-group">
+              <label for="auth-email" class="form-label">E-Mail-Adresse</label>
+              <input type="email" id="auth-email" class="form-input" placeholder="name@beispiel.de" required>
+            </div>
+            <div class="form-group">
+              <label for="auth-password" class="form-label">Passwort</label>
+              <input type="password" id="auth-password" class="form-input" placeholder="Mind. 6 Zeichen" required>
+            </div>
+            
+            <p id="auth-error-msg" style="color: var(--accent-danger); font-size: 0.85rem; margin-top: -8px; margin-bottom: 12px; display: none;"></p>
+
+            <div style="display: flex; gap: 10px;">
+              <button type="submit" id="btn-submit-login" class="btn btn-primary" style="flex: 1;">Einloggen</button>
+              <button type="button" id="btn-submit-register" class="btn btn-secondary" style="flex: 1;">Registrieren</button>
+            </div>
+          </form>
+
+          <div class="auth-divider">
+            <span>oder</span>
+          </div>
+
+          <button id="btn-google-login" class="btn btn-secondary" style="width: 100%; gap: 10px;">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" alt="Google Logo">
+            Mit Google anmelden
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Floating Bottom Navigation -->
+    <nav class="nav-bar">
+      <button class="nav-tab active" data-view="workout" id="nav-tab-workout">
+        <i class="fa-solid fa-dumbbell"></i>
+        <span>Training</span>
+      </button>
+      <button class="nav-tab" data-view="history" id="nav-tab-history">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span>Verlauf</span>
+      </button>
+      <button class="nav-tab" data-view="exercises" id="nav-tab-exercises">
+        <i class="fa-solid fa-book-open"></i>
+        <span>Übungen</span>
+      </button>
+      <button class="nav-tab" data-view="profile" id="nav-tab-profile">
+        <i class="fa-solid fa-user"></i>
+        <span>Profil</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Modal: Select Exercise (to add to active workout) -->
+  <div id="modal-select-exercise" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Übung auswählen</h2>
+        <button id="btn-close-select-modal" class="btn-modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="search-container">
+        <div class="search-input-wrapper">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="modal-exercise-search-input" class="search-input" placeholder="Übung suchen...">
+        </div>
+      </div>
+      <div id="modal-exercises-list" class="exercises-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Create Custom Exercise -->
+  <div id="modal-create-exercise" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Neue eigene Übung</h2>
+        <button id="btn-close-create-modal" class="btn-modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-create-exercise" onsubmit="return false;">
+        <div class="form-group">
+          <label for="custom-exercise-name" class="form-label">Name der Übung</label>
+          <input type="text" id="custom-exercise-name" class="form-input" placeholder="z. B. Schrägbankdrücken" required>
+        </div>
+        <div class="form-group">
+          <label for="custom-exercise-category" class="form-label">Kategorie</label>
+          <select id="custom-exercise-category" class="form-select" required>
+            <option value="Brust">Brust</option>
+            <option value="Rücken">Rücken</option>
+            <option value="Beine">Beine</option>
+            <option value="Schultern">Schultern</option>
+            <option value="Arme">Arme</option>
+            <option value="Bauch">Bauch</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-create-exercise" class="btn btn-secondary">Abbrechen</button>
+          <button type="submit" id="btn-submit-create-exercise" class="btn btn-primary">Übung erstellen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notifications Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Custom Dialog Confirmation Modal -->
+  <div id="custom-dialog-modal" class="modal">
+    <div class="modal-content" style="max-width: 320px;">
+      <div class="modal-header" style="margin-bottom: 12px;">
+        <h2 id="custom-dialog-title">Bestätigen</h2>
+      </div>
+      <p id="custom-dialog-message" style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 20px; line-height: 1.4;"></p>
+      <div class="modal-actions" style="margin-top: 0; gap: 10px;">
+        <button id="btn-custom-dialog-cancel" class="btn btn-secondary btn-sm" style="flex: 1; padding: 10px;">Abbrechen</button>
+        <button id="btn-custom-dialog-confirm" class="btn btn-primary btn-sm" style="flex: 1; padding: 10px;">Ja</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- App JavaScript Modules -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

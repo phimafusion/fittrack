@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FitTrack - QUnit Test Runner</title>
+  <!-- QUnit CSS -->
+  <link rel="stylesheet" href="https://code.jquery.com/qunit/qunit-2.20.0.css">
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #f8fafc;
+      font-family: 'Outfit', sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    #qunit {
+      border-radius: 12px;
+      overflow: hidden;
+      max-width: 900px;
+      margin: 0 auto;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <div style="text-align: center; margin-bottom: 20px;">
+    <h1 style="margin: 0; font-size: 1.8rem; background: linear-gradient(135deg, #f8fafc 30%, #0ea5e9 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">FitTrack QUnit Testing Center</h1>
+    <p style="color: #94a3b8; margin: 5px 0 0 0;">Lightweight standalone unit and integration tests</p>
+  </div>
+
+  <!-- QUnit UI Output Container -->
+  <div id="qunit"></div>
+  <div id="qunit-fixture"></div>
+
+  <!-- Load QUnit Framework -->
+  <script src="https://code.jquery.com/qunit/qunit-2.20.0.js"></script>
+
+  <script>
+    // Disable autostart so QUnit waits for the ES module to load and register tests
+    QUnit.config.autostart = false;
+
+    // Force unregister Service Worker and clear Cache Storage to load fresh files from disk
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        for (let reg of regs) {
+          reg.unregister();
+        }
+      });
+    }
+    if (window.caches) {
+      caches.keys().then(keys => {
+        for (let key of keys) {
+          caches.delete(key);
+        }
+      });
+    }
+  </script>
+
+  <!-- Load and execute QUnit test module -->
+  <script type="module" src="tests/app.test.js"></script>
+</body>
+</html>

@@ -1,0 +1,783 @@
+/**
+ * app.js
+ * Core Single Page Application controller, router, and UI state manager.
+ */
+
+import { 
+  getExercises, 
+  addExercise, 
+  deleteExercise, 
+  getWorkouts, 
+  saveWorkout, 
+  deleteWorkout,
+  updateWorkout,
+  initDB,
+  syncDatabaseWithFirebase,
+  mergeLocalDataToCloud
+} from './db.js';
+
+import {
+  onAuthStateChanged,
+  loginWithEmail,
+  registerWithEmail,
+  loginWithGoogle,
+  logout,
+  getCurrentUser
+} from './auth.js';
+
+import {
+  DOM,
+  cacheDOM,
+  uiRenderActiveWorkout,
+  uiRenderHistory,
+  uiRenderExercisesLibrary,
+  uiRenderProfile
+} from './ui.js';
+
+import {
+  showCustomAlert,
+  showCustomConfirm
+} from './dialog.js';
+
+import {
+  showToast
+} from './toast.js';
+
+// Application State
+export let activeWorkout = null;
+let timerInterval = null;
+let currentView = 'workout'; // 'workout', 'history', 'exercises', 'profile'
+let exerciseFilter = 'all';
+
+// Check if running in browser with full DOM (avoids crashes in testing runner)
+const isBrowserEnv = typeof window !== 'undefined' && typeof document !== 'undefined';
+
+// --- SPA Router ---
+export function switchView(viewName) {
+  currentView = viewName;
+  if (!isBrowserEnv || !DOM.views) return;
+
+  DOM.views.forEach(view => {
+    view.classList.remove('active');
+    if (view.id === `view-${viewName}`) {
+      view.classList.add('active');
+    }
+  });
+
+  DOM.navTabs.forEach(tab => {
+    tab.classList.remove('active');
+    if (tab.dataset.view === viewName) {
+      tab.classList.add('active');
+    }
+  });
+
+  if (viewName === 'history') {
+    renderHistory();
+  } else if (viewName === 'exercises') {
+    renderExercisesLibrary();
+  } else if (viewName === 'workout') {
+    renderActiveWorkout();
+  } else if (viewName === 'profile') {
+    renderProfile();
+  }
+}
+
+// --- Active Workout Logic ---
+export function startWorkout() {
+  activeWorkout = {
+    id: 'wo_' + Date.now(),
+    name: getDefaultWorkoutName(),
+    startTime: Date.now(),
+    exercises: []
+  };
+  saveActiveWorkoutState();
+  
+  if (isBrowserEnv && DOM.workoutTimer) {
+    initTimer();
+    renderActiveWorkout();
+    showToast('Neues Training gestartet!', 'success');
+  }
+}
+
+function getDefaultWorkoutName() {
+  const hour = new Date().getHours();
+  let period = 'Training';
+  if (hour < 12) period = 'Morgendliches Training';
+  else if (hour < 17) period = 'Nachmittagstraining';
+  else if (hour < 22) period = 'Abendtraining';
+  else period = 'Nachttraining';
+  return period;
+}
+
+export async function cancelWorkout() {
+  if (!activeWorkout) return;
+  
+  const isEditing = activeWorkout.isEditing;
+  const confirmMsg = isEditing 
+    ? 'Bearbeiten abbrechen? Die Änderungen werden nicht gespeichert.' 
+    : 'Möchtest du dieses Training wirklich verwerfen?';
+    
+  let confirmDiscard = true;
+  if (isBrowserEnv && DOM.workoutTimer) {
+    const dialogModal = document.getElementById('custom-dialog-modal');
+    if (dialogModal) {
+      confirmDiscard = await showCustomConfirm(isEditing ? 'Bearbeiten abbrechen' : 'Training verwerfen', confirmMsg);
+    } else {
+      confirmDiscard = confirm(confirmMsg);
+    }
+  }
+
+  if (confirmDiscard) {
+    activeWorkout = null;
+    localStorage.removeItem('activeWorkout');
+    if (isBrowserEnv && DOM.workoutTimer) {
+      clearInterval(timerInterval);
+      DOM.workoutTimer.style.display = 'none';
+      if (isEditing) {
+        switchView('history');
+      } else {
+        renderActiveWorkout();
+      }
+      showToast('Training verworfen.', 'info');
+    }
+  }
+}
+
+export async function finishWorkout() {
+  if (!activeWorkout) return;
+
+  const loggedExercises = activeWorkout.exercises.filter(ex => ex.sets.length > 0);
+  
+  if (loggedExercises.length === 0) {
+    const msg = 'Bitte füge mindestens eine Übung und einen Satz hinzu, bevor du das Training beendest.';
+    if (isBrowserEnv && DOM.workoutTimer) {
+      const dialogModal = document.getElementById('custom-dialog-modal');
+      if (dialogModal) {
+        await showCustomAlert('Hinweis', msg);
+      } else {
+        alert(msg);
+      }
+    }
+    return;
+  }
+
+  // Calculate volume and duration
+  let totalVolume = 0;
+  let completedSetsCount = 0;
+  
+  loggedExercises.forEach(ex => {
+    ex.sets.forEach(set => {
+      if (set.completed) {
+        totalVolume += (set.weight * set.reps);
+        completedSetsCount++;
+      }
+    });
+  });
+
+  const durationMinutes = activeWorkout.isEditing 
+    ? activeWorkout.duration 
+    : Math.round((Date.now() - activeWorkout.startTime) / 1000 / 60);
+
+  const dateStr = activeWorkout.isEditing
+    ? activeWorkout.date
+    : new Date().toISOString();
+
+  const completedWorkout = {
+    id: activeWorkout.id,
+    name: activeWorkout.name,
+    date: dateStr,
+    duration: durationMinutes,
+    volume: totalVolume,
+    exercises: loggedExercises
+  };
+
+  const isEditing = activeWorkout.isEditing;
+  if (isEditing) {
+    updateWorkout(completedWorkout);
+  } else {
+    saveWorkout(completedWorkout);
+  }
+  activeWorkout = null;
+  localStorage.removeItem('activeWorkout');
+
+  if (isBrowserEnv && DOM.workoutTimer) {
+    clearInterval(timerInterval);
+    DOM.workoutTimer.style.display = 'none';
+    switchView('history');
+    showToast(isEditing ? 'Training aktualisiert!' : 'Training abgeschlossen!', 'success');
+  }
+}
+
+export async function addExerciseToActiveWorkout(exercise) {
+  if (!activeWorkout) return;
+  
+  const exists = activeWorkout.exercises.some(ex => ex.id === exercise.id);
+  if (exists) {
+    const msg = `${exercise.name} ist bereits in diesem Training enthalten.`;
+    if (isBrowserEnv && DOM.modalSelectExercise) {
+      const dialogModal = document.getElementById('custom-dialog-modal');
+      if (dialogModal) {
+        await showCustomAlert('Information', msg);
+      } else {
+        alert(msg);
+      }
+    }
+    return;
+  }
+
+  const newExercise = {
+    id: exercise.id,
+    name: exercise.name,
+    category: exercise.category,
+    sets: [
+      { weight: 0, reps: 0, completed: false }
+    ]
+  };
+
+  activeWorkout.exercises.push(newExercise);
+  saveActiveWorkoutState();
+  
+  if (isBrowserEnv && DOM.modalSelectExercise) {
+    renderActiveWorkout();
+    closeModal(DOM.modalSelectExercise);
+    showToast('Übung hinzugefügt.', 'success');
+  }
+}
+
+export function deleteExerciseFromWorkout(index) {
+  if (!activeWorkout) return;
+  activeWorkout.exercises.splice(index, 1);
+  saveActiveWorkoutState();
+  if (isBrowserEnv && DOM.workoutExercisesList) renderActiveWorkout();
+}
+
+// --- Sets Management ---
+export function addSetToExercise(exerciseIndex) {
+  if (!activeWorkout) return;
+  const ex = activeWorkout.exercises[exerciseIndex];
+  const lastSet = ex.sets[ex.sets.length - 1];
+  
+  const newSet = {
+    weight: lastSet ? lastSet.weight : 0,
+    reps: lastSet ? lastSet.reps : 0,
+    completed: false
+  };
+  
+  ex.sets.push(newSet);
+  saveActiveWorkoutState();
+  if (isBrowserEnv && DOM.workoutExercisesList) renderActiveWorkout();
+}
+
+export function deleteSetFromExercise(exerciseIndex, setIndex) {
+  if (!activeWorkout) return;
+  const ex = activeWorkout.exercises[exerciseIndex];
+  ex.sets.splice(setIndex, 1);
+  saveActiveWorkoutState();
+  if (isBrowserEnv && DOM.workoutExercisesList) renderActiveWorkout();
+}
+
+export function toggleCompleteSet(exerciseIndex, setIndex) {
+  if (!activeWorkout) return;
+  const set = activeWorkout.exercises[exerciseIndex].sets[setIndex];
+  set.completed = !set.completed;
+  saveActiveWorkoutState();
+  if (isBrowserEnv && DOM.workoutExercisesList) renderActiveWorkout();
+}
+
+// LocalStorage Synchronization
+export function saveActiveWorkoutState() {
+  if (activeWorkout) {
+    localStorage.setItem('activeWorkout', JSON.stringify(activeWorkout));
+  }
+}
+
+export function loadActiveWorkoutState() {
+  const stateVal = localStorage.getItem('activeWorkout');
+  if (stateVal) {
+    activeWorkout = JSON.parse(stateVal);
+    if (isBrowserEnv && DOM.workoutTimer) {
+      if (activeWorkout.isEditing) {
+        DOM.workoutTimer.style.display = 'flex';
+        DOM.workoutTimer.classList.remove('active');
+        DOM.timerText.textContent = `${activeWorkout.duration} min`;
+      } else {
+        initTimer();
+      }
+      renderActiveWorkout();
+    }
+  }
+}
+
+export function editWorkout(workout) {
+  if (!workout) return;
+  
+  activeWorkout = JSON.parse(JSON.stringify(workout));
+  activeWorkout.isEditing = true;
+  
+  saveActiveWorkoutState();
+  
+  if (isBrowserEnv) {
+    if (timerInterval) clearInterval(timerInterval);
+    if (DOM.workoutTimer) {
+      DOM.workoutTimer.style.display = 'flex';
+      DOM.workoutTimer.classList.remove('active');
+      DOM.timerText.textContent = `${activeWorkout.duration} min`;
+    }
+    switchView('workout');
+  }
+}
+
+// --- Timer Helper ---
+function initTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  DOM.workoutTimer.style.display = 'flex';
+  DOM.workoutTimer.classList.add('active');
+  updateTimerUI();
+  timerInterval = setInterval(updateTimerUI, 1000);
+}
+
+function updateTimerUI() {
+  if (!activeWorkout) {
+    clearInterval(timerInterval);
+    return;
+  }
+  const ms = Date.now() - activeWorkout.startTime;
+  DOM.timerText.textContent = formatDuration(ms);
+}
+
+export function formatDuration(ms) {
+  const seconds = Math.floor((ms / 1000) % 60);
+  const minutes = Math.floor((ms / (1000 * 60)) % 60);
+  const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+
+  const s = seconds.toString().padStart(2, '0');
+  const m = minutes.toString().padStart(2, '0');
+  const h = hours.toString().padStart(2, '0');
+
+  return hours > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
+}
+
+// --- Renderers wrappers (for functional separation) ---
+export function renderActiveWorkout() {
+  uiRenderActiveWorkout(
+    activeWorkout,
+    DOM.workoutEmptyState,
+    DOM.workoutActiveUI,
+    DOM.workoutExercisesList,
+    DOM.workoutNameInput,
+    DOM.workoutExerciseCount,
+    DOM.btnFinishWorkout,
+    DOM.btnCancelWorkout
+  );
+}
+
+export function renderHistory() {
+  uiRenderHistory(getWorkouts(), DOM.historyList, DOM.historyEmptyState);
+}
+
+export function renderExercisesLibrary(container = DOM.exercisesList, searchInput = DOM.exerciseSearchInput, forSelectionModal = false) {
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  uiRenderExercisesLibrary(
+    getExercises(),
+    activeWorkout,
+    exerciseFilter,
+    container,
+    query,
+    forSelectionModal
+  );
+}
+
+export function renderProfile() {
+  uiRenderProfile(getCurrentUser(), DOM.profileLoggedIn, DOM.profileLoggedOut, DOM.profileEmail, DOM.authErrorMsg);
+}
+
+// --- Modals Controller ---
+function openModal(modal) {
+  if (!isBrowserEnv || !DOM.views) return;
+  modal.classList.add('active');
+}
+
+function closeModal(modal) {
+  if (!isBrowserEnv || !DOM.views) return;
+  modal.classList.remove('active');
+}
+
+// --- Event Listeners and Setup ---
+function setupEventListeners() {
+  if (!isBrowserEnv || !DOM.views) return;
+
+  // SPA Navigation Tabs
+  DOM.navTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      switchView(tab.dataset.view);
+    });
+  });
+
+  // Workout controls
+  DOM.btnStartWorkout.addEventListener('click', startWorkout);
+  DOM.btnCancelWorkout.addEventListener('click', cancelWorkout);
+  DOM.btnFinishWorkout.addEventListener('click', finishWorkout);
+  DOM.workoutNameInput.addEventListener('input', (e) => {
+    if (activeWorkout) {
+      activeWorkout.name = e.target.value;
+      saveActiveWorkoutState();
+    }
+  });
+
+  // Modal selector triggers
+  DOM.btnAddExerciseTrigger.addEventListener('click', () => {
+    DOM.modalExerciseSearchInput.value = '';
+    renderExercisesLibrary(DOM.modalExercisesList, DOM.modalExerciseSearchInput, true);
+    openModal(DOM.modalSelectExercise);
+  });
+
+  DOM.btnCloseSelectModal.addEventListener('click', () => closeModal(DOM.modalSelectExercise));
+
+  // Exercise Search inputs
+  DOM.exerciseSearchInput.addEventListener('input', () => renderExercisesLibrary());
+  DOM.modalExerciseSearchInput.addEventListener('input', () => {
+    renderExercisesLibrary(DOM.modalExercisesList, DOM.modalExerciseSearchInput, true);
+  });
+
+  // Custom Exercise Creation Modal
+  DOM.btnCreateExerciseModalTrigger.addEventListener('click', () => {
+    DOM.customExerciseName.value = '';
+    openModal(DOM.modalCreateExercise);
+  });
+  
+  DOM.btnCloseCreateModal.addEventListener('click', () => closeModal(DOM.modalCreateExercise));
+  DOM.btnCancelCreateExercise.addEventListener('click', () => closeModal(DOM.modalCreateExercise));
+  
+  DOM.formCreateExercise.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = DOM.customExerciseName.value.trim();
+    const category = DOM.customExerciseCategory.value;
+    if (name) {
+      addExercise(name, category);
+      closeModal(DOM.modalCreateExercise);
+      renderExercisesLibrary();
+      showToast('Neue Übung erstellt.', 'success');
+    }
+  });
+
+  // Exercise category filters
+  DOM.filterBadges.forEach(badge => {
+    badge.addEventListener('click', () => {
+      DOM.filterBadges.forEach(b => b.classList.remove('active'));
+      badge.classList.add('active');
+      exerciseFilter = badge.dataset.category;
+      renderExercisesLibrary();
+    });
+  });
+
+  // Delegated events for dynamic elements in the Workout Exercises list
+  DOM.workoutExercisesList.addEventListener('click', (e) => {
+    const target = e.target;
+    
+    const btnWeightMinus = target.closest('.btn-weight-minus');
+    const btnWeightPlus = target.closest('.btn-weight-plus');
+    const btnRepsMinus = target.closest('.btn-reps-minus');
+    const btnRepsPlus = target.closest('.btn-reps-plus');
+    const btnComplete = target.closest('.btn-complete-set');
+    const btnAddSet = target.closest('.btn-add-set');
+    const btnRemoveLastSet = target.closest('.btn-delete-set');
+    const btnDeleteExerciseCard = target.closest('.btn-card-delete');
+
+    if (btnWeightMinus) {
+      const exIdx = parseInt(btnWeightMinus.dataset.exIdx);
+      const setIdx = parseInt(btnWeightMinus.dataset.setIdx);
+      const set = activeWorkout.exercises[exIdx].sets[setIdx];
+      set.weight = Math.max(0, set.weight - 2.5);
+      saveActiveWorkoutState();
+      renderActiveWorkout();
+    }
+    
+    else if (btnWeightPlus) {
+      const exIdx = parseInt(btnWeightPlus.dataset.exIdx);
+      const setIdx = parseInt(btnWeightPlus.dataset.setIdx);
+      const set = activeWorkout.exercises[exIdx].sets[setIdx];
+      set.weight = set.weight + 2.5;
+      saveActiveWorkoutState();
+      renderActiveWorkout();
+    }
+
+    else if (btnRepsMinus) {
+      const exIdx = parseInt(btnRepsMinus.dataset.exIdx);
+      const setIdx = parseInt(btnRepsMinus.dataset.setIdx);
+      const set = activeWorkout.exercises[exIdx].sets[setIdx];
+      set.reps = Math.max(0, set.reps - 1);
+      saveActiveWorkoutState();
+      renderActiveWorkout();
+    }
+
+    else if (btnRepsPlus) {
+      const exIdx = parseInt(btnRepsPlus.dataset.exIdx);
+      const setIdx = parseInt(btnRepsPlus.dataset.setIdx);
+      const set = activeWorkout.exercises[exIdx].sets[setIdx];
+      set.reps = set.reps + 1;
+      saveActiveWorkoutState();
+      renderActiveWorkout();
+    }
+
+    else if (btnComplete) {
+      const exIdx = parseInt(btnComplete.dataset.exIdx);
+      const setIdx = parseInt(btnComplete.dataset.setIdx);
+      toggleCompleteSet(exIdx, setIdx);
+    }
+
+    else if (btnAddSet) {
+      const exIdx = parseInt(btnAddSet.dataset.exIdx);
+      addSetToExercise(exIdx);
+    }
+
+    else if (btnRemoveLastSet) {
+      const exIdx = parseInt(btnRemoveLastSet.dataset.exIdx);
+      const sets = activeWorkout.exercises[exIdx].sets;
+      if (sets.length > 1) {
+        deleteSetFromExercise(exIdx, sets.length - 1);
+      }
+    }
+
+    else if (btnDeleteExerciseCard) {
+      const exIdx = parseInt(btnDeleteExerciseCard.dataset.exIdx);
+      deleteExerciseFromWorkout(exIdx);
+    }
+  });
+
+  // Delegated manual text/number input in active workout sets table
+  DOM.workoutExercisesList.addEventListener('input', (e) => {
+    const target = e.target;
+    if (target.classList.contains('val-weight')) {
+      const exIdx = parseInt(target.dataset.exIdx);
+      const setIdx = parseInt(target.dataset.setIdx);
+      activeWorkout.exercises[exIdx].sets[setIdx].weight = parseFloat(target.value) || 0;
+      saveActiveWorkoutState();
+    }
+    
+    if (target.classList.contains('val-reps')) {
+      const exIdx = parseInt(target.dataset.exIdx);
+      const setIdx = parseInt(target.dataset.setIdx);
+      activeWorkout.exercises[exIdx].sets[setIdx].reps = parseInt(target.value) || 0;
+      saveActiveWorkoutState();
+    }
+  });
+
+  // Delegated trigger for Modal Select Exercise (clicking the list item add button)
+  DOM.modalSelectExercise.addEventListener('click', (e) => {
+    const target = e.target.closest('.btn-add-exercise-to-workout');
+    if (target) {
+      const exId = target.dataset.exId;
+      const ex = getExercises().find(x => x.id === exId);
+      if (ex) {
+        addExerciseToActiveWorkout(ex);
+      }
+    }
+  });
+
+  // Delegated triggers in Exercise Library (Add directly or delete custom)
+  DOM.exercisesList.addEventListener('click', async (e) => {
+    const addBtn = e.target.closest('.btn-add-exercise-to-workout');
+    const deleteBtn = e.target.closest('.btn-delete-custom-ex');
+    
+    if (addBtn) {
+      const exId = addBtn.dataset.exId;
+      const ex = getExercises().find(x => x.id === exId);
+      if (ex) {
+        addExerciseToActiveWorkout(ex);
+        switchView('workout');
+      }
+    }
+    
+    if (deleteBtn) {
+      const exId = deleteBtn.dataset.exId;
+      const dialogModal = document.getElementById('custom-dialog-modal');
+      let proceed = false;
+      const msg = 'Möchtest du diese eigene Übung wirklich dauerhaft löschen?';
+      if (dialogModal) {
+        proceed = await showCustomConfirm('Übung löschen', msg);
+      } else {
+        proceed = confirm(msg);
+      }
+
+      if (proceed) {
+        deleteExercise(exId);
+        renderExercisesLibrary();
+        showToast('Übung dauerhaft gelöscht.', 'success');
+      }
+    }
+  });
+
+  // Delegated triggers in History (delete or edit log)
+  DOM.historyList.addEventListener('click', async (e) => {
+    const deleteBtn = e.target.closest('.btn-delete-history');
+    const editBtn = e.target.closest('.btn-edit-workout');
+    
+    if (deleteBtn) {
+      const wId = deleteBtn.dataset.workoutId;
+      const dialogModal = document.getElementById('custom-dialog-modal');
+      let proceed = false;
+      const msg = 'Möchtest du dieses Training wirklich aus dem Verlauf löschen?';
+      if (dialogModal) {
+        proceed = await showCustomConfirm('Eintrag löschen', msg);
+      } else {
+        proceed = confirm(msg);
+      }
+
+      if (proceed) {
+        deleteWorkout(wId);
+        renderHistory();
+        showToast('Training gelöscht.', 'success');
+      }
+    }
+    
+    if (editBtn) {
+      const wId = editBtn.dataset.workoutId;
+      const workout = getWorkouts().find(w => w.id === wId);
+      if (workout) {
+        editWorkout(workout);
+      }
+    }
+  });
+
+  // Auth Form interactions (Login/Register)
+  if (DOM.authForm) {
+    DOM.btnSubmitLogin.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const email = DOM.authEmail.value.trim();
+      const password = DOM.authPassword.value;
+      if (!email || !password) return;
+      
+      DOM.authErrorMsg.style.display = 'none';
+      const result = await loginWithEmail(email, password);
+      if (result.success) {
+        const user = getCurrentUser();
+        if (user) {
+          await mergeLocalDataToCloud(user.uid);
+        }
+        switchView('profile');
+        showToast('Erfolgreich angemeldet!', 'success');
+      } else {
+        DOM.authErrorMsg.textContent = translateAuthError(result.error);
+        DOM.authErrorMsg.style.display = 'block';
+      }
+    });
+
+    DOM.btnSubmitRegister.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const email = DOM.authEmail.value.trim();
+      const password = DOM.authPassword.value;
+      if (!email || !password) return;
+
+      DOM.authErrorMsg.style.display = 'none';
+      const result = await registerWithEmail(email, password);
+      if (result.success) {
+        const user = getCurrentUser();
+        if (user) {
+          await mergeLocalDataToCloud(user.uid);
+        }
+        switchView('profile');
+        showToast('Konto erfolgreich erstellt und angemeldet!', 'success');
+      } else {
+        DOM.authErrorMsg.textContent = translateAuthError(result.error);
+        DOM.authErrorMsg.style.display = 'block';
+      }
+    });
+
+    DOM.btnGoogleLogin.addEventListener('click', async () => {
+      DOM.authErrorMsg.style.display = 'none';
+      const result = await loginWithGoogle();
+      if (result.success) {
+        const user = getCurrentUser();
+        if (user) {
+          await mergeLocalDataToCloud(user.uid);
+        }
+        switchView('profile');
+        showToast('Erfolgreich mit Google angemeldet!', 'success');
+      } else {
+        DOM.authErrorMsg.textContent = translateAuthError(result.error);
+        DOM.authErrorMsg.style.display = 'block';
+      }
+    });
+  }
+
+  if (DOM.btnLogout) {
+    DOM.btnLogout.addEventListener('click', () => {
+      logout().then(() => {
+        switchView('profile');
+        showToast('Erfolgreich abgemeldet.', 'info');
+      });
+    });
+  }
+}
+
+function translateAuthError(msg) {
+  if (!msg) return 'Fehler bei der Anmeldung.';
+  if (msg.includes('user-not-found') || msg.includes('auth/invalid-credential')) {
+    return 'Ungültige Anmeldedaten. Bitte überprüfe E-Mail und Passwort.';
+  }
+  if (msg.includes('email-already-in-use')) {
+    return 'Diese E-Mail-Adresse wird bereits verwendet.';
+  }
+  if (msg.includes('weak-password')) {
+    return 'Das Passwort ist zu schwach. Es sollte mindestens 6 Zeichen haben.';
+  }
+  if (msg.includes('invalid-email')) {
+    return 'Ungültiges E-Mail-Format.';
+  }
+  return msg;
+}
+
+// Service Worker Registration (Disabled during development to prevent caching issues)
+function registerServiceWorker() {
+  if (isBrowserEnv) {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (let registration of registrations) {
+          registration.unregister().then(() => {
+            console.log('Service Worker successfully unregistered.');
+          });
+        }
+      });
+    }
+    if (window.caches) {
+      caches.keys().then(keys => {
+        for (let key of keys) {
+          caches.delete(key);
+        }
+      });
+    }
+  }
+}
+
+// App Initialization
+export function init() {
+  if (isBrowserEnv) {
+    const mainAppElement = document.getElementById('btn-start-workout');
+    if (!mainAppElement) {
+      console.log('App initialization skipped (Test environment detected)');
+      return;
+    }
+    initDB();
+    cacheDOM();
+    setupEventListeners();
+    loadActiveWorkoutState();
+    switchView(currentView);
+    registerServiceWorker();
+
+    // Set up Firebase auth state listener
+    onAuthStateChanged(user => {
+      syncDatabaseWithFirebase(user);
+      renderProfile();
+    });
+
+    // Re-render components when the in-memory database updates from Firestore
+    window.addEventListener('db-updated', () => {
+      if (currentView === 'history') renderHistory();
+      else if (currentView === 'exercises') renderExercisesLibrary();
+      else if (currentView === 'workout') renderActiveWorkout();
+    });
+  }
+}
+
+// Trigger initial setup
+init();
