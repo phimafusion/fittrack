@@ -43,6 +43,14 @@ import {
   showToast
 } from './toast.js';
 
+import {
+  startRestTimer,
+  adjustRestTimer,
+  hideRestTimerOverlay,
+  getDefaultRestDuration
+} from './timer.js';
+
+
 // Application State
 export let activeWorkout = null;
 let timerInterval = null;
@@ -278,10 +286,17 @@ export function deleteSetFromExercise(exerciseIndex, setIndex) {
 
 export function toggleCompleteSet(exerciseIndex, setIndex) {
   if (!activeWorkout) return;
-  const set = activeWorkout.exercises[exerciseIndex].sets[setIndex];
+  const ex = activeWorkout.exercises[exerciseIndex];
+  const set = ex.sets[setIndex];
   set.completed = !set.completed;
   saveActiveWorkoutState();
-  if (isBrowserEnv && DOM.workoutExercisesList) renderActiveWorkout();
+  if (isBrowserEnv && DOM.workoutExercisesList) {
+    renderActiveWorkout();
+    if (set.completed) {
+      const defaultDuration = getDefaultRestDuration();
+      startRestTimer(defaultDuration, ex.name);
+    }
+  }
 }
 
 // LocalStorage Synchronization
@@ -698,6 +713,17 @@ function setupEventListeners() {
         DOM.authErrorMsg.style.display = 'block';
       }
     });
+
+    // Rest Timer Overlay button listeners
+    if (DOM.btnRestTimerMinus) {
+      DOM.btnRestTimerMinus.addEventListener('click', () => adjustRestTimer(-30));
+    }
+    if (DOM.btnRestTimerPlus) {
+      DOM.btnRestTimerPlus.addEventListener('click', () => adjustRestTimer(30));
+    }
+    if (DOM.btnRestTimerSkip) {
+      DOM.btnRestTimerSkip.addEventListener('click', () => hideRestTimerOverlay());
+    }
   }
 
   if (DOM.btnLogout) {

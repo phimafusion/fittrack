@@ -57,6 +57,15 @@ export function cacheDOM() {
   DOM.btnSubmitLogin = document.getElementById('btn-submit-login');
   DOM.btnSubmitRegister = document.getElementById('btn-submit-register');
   DOM.btnGoogleLogin = document.getElementById('btn-google-login');
+
+  // Rest Timer DOM elements
+  DOM.restTimerOverlay = document.getElementById('rest-timer-overlay');
+  DOM.restTimerTitle = document.getElementById('rest-timer-title');
+  DOM.restTimerCircleProgress = document.getElementById('rest-timer-circle-progress');
+  DOM.restTimerTime = document.getElementById('rest-timer-time');
+  DOM.btnRestTimerMinus = document.getElementById('btn-rest-timer-minus');
+  DOM.btnRestTimerPlus = document.getElementById('btn-rest-timer-plus');
+  DOM.btnRestTimerSkip = document.getElementById('btn-rest-timer-skip');
 }
 
 /**
@@ -313,3 +322,21 @@ export function uiRenderProfile(user, loggedInEl, loggedOutEl, emailEl, errorEl)
     if (errorEl) errorEl.style.display = 'none';
   }
 }
+
+/**
+ * Update Rest Timer circular progress and time text
+ */
+export function uiUpdateRestTimer(timeLeft, totalDuration, exerciseName) {
+  if (!DOM.restTimerTitle || !DOM.restTimerTime || !DOM.restTimerCircleProgress) return;
+
+  DOM.restTimerTitle.textContent = exerciseName ? `Pause - ${exerciseName}` : 'Pause';
+
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  DOM.restTimerTime.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+  const percent = totalDuration > 0 ? timeLeft / totalDuration : 0;
+  const offset = 283 * (1 - percent);
+  DOM.restTimerCircleProgress.style.strokeDashoffset = offset;
+}
+

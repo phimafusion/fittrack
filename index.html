@@ -268,6 +268,27 @@
     </div>
   </div>
 
+  <!-- Rest Timer Overlay -->
+  <div id="rest-timer-overlay" class="rest-timer-overlay" style="display: none;">
+    <div class="rest-timer-content">
+      <div class="rest-timer-header">
+        <span id="rest-timer-title">Pause</span>
+      </div>
+      <div class="rest-timer-circle-wrapper">
+        <svg class="rest-timer-svg" viewBox="0 0 100 100">
+          <circle class="rest-timer-circle-bg" cx="50" cy="50" r="45"></circle>
+          <circle id="rest-timer-circle-progress" class="rest-timer-circle-progress" cx="50" cy="50" r="45"></circle>
+        </svg>
+        <span id="rest-timer-time">01:30</span>
+      </div>
+      <div class="rest-timer-actions">
+        <button id="btn-rest-timer-minus" class="btn btn-secondary btn-circle" title="-30 Sekunden">-30s</button>
+        <button id="btn-rest-timer-skip" class="btn btn-primary btn-sm">Überspringen</button>
+        <button id="btn-rest-timer-plus" class="btn btn-secondary btn-circle" title="+30 Sekunden">+30s</button>
+      </div>
+    </div>
+  </div>
+
   <!-- App JavaScript Modules -->
   <script type="module" src="js/app.js"></script>
 </body>

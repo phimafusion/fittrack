@@ -28,6 +28,13 @@ import {
   editWorkout
 } from '../js/app.js';
 
+import {
+  getRestTimerState,
+  startRestTimer,
+  adjustRestTimer,
+  hideRestTimerOverlay
+} from '../js/timer.js';
+
 QUnit.module('FitTrack Test Suite', hooks => {
 
   // Isolate localStorage before and after each test
@@ -259,6 +266,61 @@ QUnit.module('FitTrack Test Suite', hooks => {
       assert.equal(workouts[0].name, 'Geänderter Trainingsname', 'Workout name updated');
       assert.equal(workouts[0].exercises[0].sets.length, 2, 'Sets count increased to 2');
       assert.equal(workouts[0].volume, 980, 'Volume recalculated correctly (50*10 + 60*8 = 980)');
+    });
+  });
+
+  QUnit.module('Pausen-Timer (timer.js)', hooks => {
+    hooks.afterEach(() => {
+      hideRestTimerOverlay();
+    });
+
+    QUnit.test('Timer start on set completion', assert => {
+      // 1. Start a mock workout and add exercise
+      startWorkout();
+      const deadlift = { id: 'deadlift', name: 'Kreuzheben', category: 'Rücken' };
+      addExerciseToActiveWorkout(deadlift);
+
+      // Verify timer is initially inactive
+      let timerState = getRestTimerState();
+      assert.notOk(timerState.isActive, 'Rest timer is not active initially');
+
+      // 2. Toggle set 1 to complete
+      toggleCompleteSet(0, 0);
+
+      // Verify rest timer is started
+      timerState = getRestTimerState();
+      assert.ok(timerState.isActive, 'Rest timer started on set completion');
+      assert.equal(timerState.exerciseName, 'Kreuzheben', 'Correct exercise name associated');
+      assert.ok(timerState.timeLeft > 0, 'Time left is initialized');
+    });
+
+    QUnit.test('Timer adjustment (+30s / -30s)', assert => {
+      startRestTimer(90, 'Bankdrücken');
+      
+      let state = getRestTimerState();
+      assert.equal(state.timeLeft, 90, 'Initial time left is 90s');
+
+      // Add 30 seconds
+      adjustRestTimer(30);
+      state = getRestTimerState();
+      assert.equal(state.timeLeft, 120, 'Adjusted time left is 120s (+30s)');
+
+      // Subtract 30 seconds
+      adjustRestTimer(-30);
+      state = getRestTimerState();
+      assert.equal(state.timeLeft, 90, 'Adjusted time left is 90s (-30s)');
+    });
+
+    QUnit.test('Timer skip/dismissal', assert => {
+      startRestTimer(60, 'Kniebeugen');
+      
+      let state = getRestTimerState();
+      assert.ok(state.isActive, 'Timer is active');
+
+      // Skip the timer
+      hideRestTimerOverlay();
+      state = getRestTimerState();
+      assert.notOk(state.isActive, 'Timer is inactive after skip');
     });
   });
 });
