@@ -74,3 +74,14 @@ Hier werden alle 36 Unit- und Integrationstests direkt im Browser ausgeführt un
 ## 📱 Auf dem Smartphone nutzen (PWA / APK)
 
 * Detaillierte Schritte, wie du die App lokal auf deinem Smartphone testest, sie als PWA installierst oder in eine eigenständige **Android APK** umwandelst, findest du in der Datei **[apk-guide.md](file:///c:/Users/phili/Documents/antigravity_git/fitnesstracker/apk-guide.md)**.
+
+---
+
+## 🔮 Zukünftige Features & Roadmap
+
+Folgende Features sind für zukünftige Versionen geplant:
+* ⏱️ **Pausen-Timer (Rest Timer)**: Automatischer Countdown nach beendetem Satz.
+* 🏆 **Letzte Trainingswerte & PRs**: Direkte Anzeige deiner letzten Leistungen beim Eintragen von Gewichten sowie Kennzeichnung von Rekorden.
+* 📊 **Statistik-Dashboard**: Grafische Auswertung von Trainingsvolumen, Frequenz und trainierten Muskelgruppen.
+* 📋 **Trainingspläne / Vorlagen**: Schnelles Starten von vordefinierten Routinen (z. B. Push/Pull/Legs).
+
