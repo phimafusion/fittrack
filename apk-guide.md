@@ -1,52 +1,53 @@
-# FitTrack APK Generation & Testing Guide
+# 📱 FitTrack - Anleitung für APK-Erstellung & Mobiles Testen
 
-This guide explains how to run your FitTrack app on a mobile device and compile it into a signed Android APK.
-
----
-
-## 1. Testing the App on your Phone (Local Network)
-
-Before compiling, you can run the app directly on your phone to test it in the gym:
-
-1. **Find your computer's IP address**:
-   - Open PowerShell and run `ipconfig`.
-   - Look for the IPv4 Address under your active network adapter (e.g., `192.168.1.150`).
-2. **Access from your phone**:
-   - Make sure your phone and computer are connected to the same Wi-Fi network.
-   - Open Chrome or Safari on your phone and navigate to `http://<your-computer-ip>:8000` (e.g., `http://192.168.1.150:8000`).
-3. **Install as PWA**:
-   - **On Android (Chrome)**: Tap the three dots menu button and select **"Add to Home Screen"** or **"Install App"**.
-   - **On iOS (Safari)**: Tap the **Share** button (arrow up) and select **"Add to Home Screen"**.
-   - The app will now have a launcher icon on your phone and run in full-screen standalone mode, completely offline!
+Diese Anleitung erklärt, wie du deine FitTrack-App auf einem mobilen Gerät testen und sie in eine signierte, installierbare Android-APK kompilieren kannst.
 
 ---
 
-## 2. Compiling into a signed Android APK (.apk)
+## 1. App auf dem Smartphone testen (Lokales Netzwerk)
 
-To wrap the web app as a native Android package, we use **PWA Builder**, which is a free tool provided by Microsoft to package progressive web apps into store-ready formats.
+Bevor du die App fest installierst, kannst du sie direkt auf deinem Smartphone im selben WLAN-Netzwerk ausführen, um sie im Fitnessstudio zu testen:
 
-### Step 1: Push or Publish your App
-PWA Builder needs a public URL. You can host your app for free using:
-- **GitHub Pages** (e.g., `https://username.github.io/fitnesstracker`)
-- **Vercel** (deploy the directory with 1 click: `vercel`)
-- **Netlify** (drag-and-drop the `fitnesstracker` folder to deploy in seconds)
+1. **Finde die IP-Adresse deines Computers**:
+   - Öffne die PowerShell oder Eingabeaufforderung auf deinem PC.
+   - Führe den Befehl `ipconfig` aus.
+   - Suche nach der **IPv4-Adresse** unter deinem aktiven Netzwerkadapter (z. B. `192.168.1.150`).
+2. **Aufruf über das Smartphone**:
+   - Stelle sicher, dass dein Smartphone und dein Computer im **selben WLAN-Netzwerk** angemeldet sind.
+   - Öffne den Browser auf deinem Smartphone (Chrome für Android, Safari für iOS) und rufe die Adresse auf: `http://<IP-deines-Computers>:8000` (z. B. `http://192.168.1.150:8000`).
+3. **Als PWA installieren**:
+   - **Unter Android (Chrome)**: Tippe oben rechts auf die drei Punkte und wähle **"Zum Startbildschirm hinzufügen"** oder **"App installieren"**.
+   - **Unter iOS (Safari)**: Tippe unten auf den **Teilen**-Button (Viereck mit Pfeil nach oben) und wähle **"Zum Home-Bildschirm"**.
+   - Die App hat nun ein eigenes Icon auf deinem Smartphone und startet im Vollbildmodus – komplett offline-fähig!
 
-### Step 2: Generate the APK on PWA Builder
-1. Go to [pwabuilder.com](https://www.pwabuilder.com).
-2. Enter the public URL of your published FitTrack PWA (e.g., `https://my-fittrack.vercel.app`) and click **Start**.
-3. PWA Builder will inspect your `manifest.json` and confirm it is ready for packaging.
-4. Click **Build My App** and select **Google Play (Android)**.
-5. In the settings modal, configure:
+---
+
+## 2. Kompilieren in eine signierte Android-APK (.apk)
+
+Um die Web-App in eine native Android-App zu verpacken, nutzen wir **PWA Builder** (ein kostenloses Tool von Microsoft, das Progressive Web Apps in App-Store-Formate konvertiert).
+
+### Schritt 1: App im Internet veröffentlichen (Hosting)
+PWA Builder benötigt eine öffentlich erreichbare URL deiner App. Du kannst deinen lokalen Ordner in Sekunden kostenlos hochladen über:
+- **Vercel** (Befehl im Ordner ausführen: `vercel` – lädt das Verzeichnis sofort hoch)
+- **Netlify** (Ziehe den Ordner `fitnesstracker` einfach per Drag-and-Drop auf das Netlify-Dashboard)
+- **GitHub Pages** (Z. B. unter `https://username.github.io/fitnesstracker`)
+
+### Schritt 2: APK generieren auf PWA Builder
+1. Besuche [pwabuilder.com](https://www.pwabuilder.com).
+2. Gib die öffentliche URL deiner gehosteten FitTrack PWA ein (z. B. `https://my-fittrack.vercel.app`) und klicke auf **Start**.
+3. PWA Builder überprüft deine `manifest.json` und bestätigt, dass die App bereit für die Paketierung ist.
+4. Klicke auf **Build My App** und wähle **Google Play (Android)**.
+5. Konfiguriere die Einstellungen im Modal:
    - **Package ID**: `com.fittrack.app`
    - **App Name**: `FitTrack`
    - **Launcher Title**: `FitTrack`
-6. Click **Generate**. Once finished, download the generated zip file.
+6. Klicke auf **Generate**. Nach Abschluss des Builds lädst du die generierte ZIP-Datei herunter.
 
-### Step 3: Extract and Install
-1. Open the downloaded zip file.
-2. Inside, find the file named `app-release-signed.apk` (or similar `.apk` file).
-3. Copy this `.apk` file to your Android phone (via USB cable, Google Drive, or email).
-4. On your phone, tap the `.apk` file to install it.
-   - *Note: You may need to enable "Allow installation from unknown sources" in your Android settings.*
+### Schritt 3: Extrahieren und Installieren
+1. Entpacke die heruntergeladene ZIP-Datei auf deinem PC.
+2. Suche darin nach der Datei namens `app-release-signed.apk` (oder einer ähnlichen `.apk`-Datei).
+3. Kopiere diese `.apk`-Datei auf dein Android-Smartphone (per USB-Kabel, Google Drive, E-Mail oder WhatsApp).
+4. Tippe die `.apk`-Datei auf deinem Smartphone an, um die Installation zu starten.
+   - *Hinweis: Ggf. musst du in den Android-Einstellungen die Installation aus "unbekannten Quellen" erlauben.*
 
-Your FitTrack app is now running as a native Android application!
+Deine FitTrack-App läuft nun als vollwertige, native Android-App auf deinem Smartphone!
