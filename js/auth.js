@@ -1,19 +1,37 @@
-import { firebaseConfig } from './firebase-config.js';
+// Firebase Initialization with graceful fallback
+// If firebase-config.js doesn't exist (e.g. GitHub Pages), the app runs in guest-only mode.
 
-// Initialize Firebase (Compat mode)
 let auth = null;
 
 const isBrowserEnv = typeof window !== 'undefined' && typeof document !== 'undefined';
 
-if (isBrowserEnv && typeof firebase !== 'undefined') {
-  // Only initialize if firebase is available (avoids test runner issues if SDK fails to load)
+async function initFirebase() {
+  if (!isBrowserEnv || typeof firebase === 'undefined') return;
+
   try {
-    firebase.initializeApp(firebaseConfig);
+    // Dynamic import: fails gracefully if firebase-config.js doesn't exist
+    const { firebaseConfig } = await import('./firebase-config.js');
+
+    // Sanity-check: reject placeholder values from firebase-config.example.js
+    if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes('YOUR_')) {
+      console.warn('[Auth] Firebase config contains placeholder values – running in guest mode.');
+      return;
+    }
+
+    // Check if Firebase was already initialized (e.g. by another module)
+    if (!firebase.apps || firebase.apps.length === 0) {
+      firebase.initializeApp(firebaseConfig);
+    }
     auth = firebase.auth();
+    console.log('[Auth] Firebase initialized successfully.');
   } catch (e) {
-    console.error('Firebase initialization failed:', e);
+    // firebase-config.js not found → silently fall back to guest mode
+    console.warn('[Auth] firebase-config.js not found – running in guest mode. (This is expected on GitHub Pages.)');
   }
 }
+
+// Kick off async init; the rest of the module remains synchronous-compatible
+const firebaseReady = initFirebase();
 
 export const logout = () => {
   if (auth) return auth.signOut();
@@ -21,7 +39,8 @@ export const logout = () => {
 };
 
 export const loginWithGoogle = async () => {
-  if (!auth) return { success: false, error: 'Firebase is not initialized.' };
+  await firebaseReady;
+  if (!auth) return { success: false, error: 'Firebase ist nicht konfiguriert (Gastmodus).' };
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     await auth.signInWithPopup(provider);
@@ -32,7 +51,8 @@ export const loginWithGoogle = async () => {
 };
 
 export const loginWithEmail = async (email, password) => {
-  if (!auth) return { success: false, error: 'Firebase is not initialized.' };
+  await firebaseReady;
+  if (!auth) return { success: false, error: 'Firebase ist nicht konfiguriert (Gastmodus).' };
   try {
     await auth.signInWithEmailAndPassword(email, password);
     return { success: true };
@@ -42,7 +62,8 @@ export const loginWithEmail = async (email, password) => {
 };
 
 export const registerWithEmail = async (email, password) => {
-  if (!auth) return { success: false, error: 'Firebase is not initialized.' };
+  await firebaseReady;
+  if (!auth) return { success: false, error: 'Firebase ist nicht konfiguriert (Gastmodus).' };
   try {
     await auth.createUserWithEmailAndPassword(email, password);
     return { success: true };
@@ -52,12 +73,14 @@ export const registerWithEmail = async (email, password) => {
 };
 
 export const onAuthStateChanged = (callback) => {
-  if (auth) {
-    auth.onAuthStateChanged(callback);
-  } else {
-    // If not in browser / no Firebase, immediately callback with null
-    callback(null);
-  }
+  firebaseReady.then(() => {
+    if (auth) {
+      auth.onAuthStateChanged(callback);
+    } else {
+      // No Firebase → immediately signal "not logged in"
+      callback(null);
+    }
+  });
 };
 
 export const getCurrentUser = () => {
