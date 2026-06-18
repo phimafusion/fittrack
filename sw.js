@@ -1,26 +1,34 @@
-const CACHE_NAME = 'fittrack-cache-v3';
+const CACHE_NAME = 'fittrack-cache-v4';
+
+// Use relative paths so the SW works both on localhost AND on GitHub Pages (/fittrack/)
 const ASSETS = [
   './',
   './index.html',
   './css/style.css',
-  './js/db.js',
   './js/app.js',
+  './js/db.js',
+  './js/auth.js',
+  './js/ui.js',
+  './js/timer.js',
+  './js/dialog.js',
+  './js/toast.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
 
-// Install Event
+// Install Event: Pre-cache all app shell assets
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[Service Worker] Caching App Shell');
-      return cache.addAll(ASSETS);
+      // addAll can fail if any resource 404s; we use individual add to be resilient
+      return Promise.allSettled(ASSETS.map(asset => cache.add(asset)));
     }).then(() => self.skipWaiting())
   );
 });
 
-// Activate Event
+// Activate Event: Clean up old caches
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
@@ -36,21 +44,33 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Fetch Event
+// Fetch Event: Serve from cache, fall back to network
 self.addEventListener('fetch', (e) => {
   // Bypass Service Worker completely for the test runner and any requests initiated by it
+  const url = e.request.url;
   const referer = e.request.referrer || '';
   if (
-    e.request.url.includes('test.html') || 
-    e.request.url.includes('tests/') ||
+    url.includes('test.html') ||
+    url.includes('tests/') ||
     referer.includes('test.html')
   ) {
-    console.log('[Service Worker] Bypassing cache for test-related request:', e.request.url);
     return; // Force direct network request
   }
 
-  // Only cache GET requests and skip browser extensions (chrome-extension://)
-  if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) {
+  // Only cache same-origin GET requests
+  if (e.request.method !== 'GET' || !url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  // Skip Firebase, CDN, and other external requests
+  if (
+    url.includes('firebaseapp.com') ||
+    url.includes('googleapis.com') ||
+    url.includes('gstatic.com') ||
+    url.includes('fonts.googleapis.com') ||
+    url.includes('cdnjs.cloudflare.com') ||
+    url.includes('code.jquery.com')
+  ) {
     return;
   }
 
@@ -75,7 +95,7 @@ self.addEventListener('fetch', (e) => {
           return networkResponse;
         })
         .catch(() => {
-          // Offline fallback
+          // Offline fallback for navigation
           if (e.request.mode === 'navigate') {
             return caches.match('./index.html');
           }

@@ -755,25 +755,20 @@ function translateAuthError(msg) {
   return msg;
 }
 
-// Service Worker Registration (Disabled during development to prevent caching issues)
+// Service Worker Registration
 function registerServiceWorker() {
-  if (isBrowserEnv) {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        for (let registration of registrations) {
-          registration.unregister().then(() => {
-            console.log('Service Worker successfully unregistered.');
-          });
-        }
+  if (isBrowserEnv && 'serviceWorker' in navigator) {
+    // Determine the correct SW scope based on the current path
+    // Works both for local dev (/) and GitHub Pages subdirectory (/fittrack/)
+    const swPath = new URL('./sw.js', window.location.href).href;
+    
+    navigator.serviceWorker.register(swPath, { scope: './' })
+      .then(reg => {
+        console.log('[App] Service Worker registered successfully, scope:', reg.scope);
+      })
+      .catch(err => {
+        console.warn('[App] Service Worker registration failed:', err);
       });
-    }
-    if (window.caches) {
-      caches.keys().then(keys => {
-        for (let key of keys) {
-          caches.delete(key);
-        }
-      });
-    }
   }
 }
 
