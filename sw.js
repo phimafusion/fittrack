@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fittrack-cache-v15';
+const CACHE_NAME = 'fittrack-cache-v16';
 
 // Use relative paths so the SW works both on localhost AND on GitHub Pages (/fittrack/)
 const ASSETS = [

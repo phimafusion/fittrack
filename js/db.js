@@ -315,6 +315,33 @@ export function addExercise(name, category) {
 }
 
 /**
+ * Update an existing exercise
+ */
+export function updateExercise(id, name, category) {
+  if (!id || !name || !category) return null;
+  
+  const updatedEx = { id, name, category };
+
+  const user = getCurrentUser();
+  if (dbFirestore && user) {
+    dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(id).set(updatedEx)
+      .catch(err => console.error('Firestore update custom exercise failed:', err));
+  } else {
+    // Guest fallback
+    const index = cachedExercises.findIndex(ex => ex.id === id);
+    if (index !== -1) {
+      cachedExercises[index] = updatedEx;
+    } else {
+      cachedExercises.push(updatedEx);
+    }
+    localStorage.setItem('exercises', JSON.stringify(cachedExercises));
+    window.dispatchEvent(new CustomEvent('db-updated'));
+  }
+
+  return updatedEx;
+}
+
+/**
  * Delete a custom exercise
  */
 export function deleteExercise(id) {

@@ -7,6 +7,7 @@ import {
   getExercises, 
   addExercise, 
   deleteExercise, 
+  updateExercise,
   getWorkouts, 
   saveWorkout, 
   deleteWorkout,
@@ -546,6 +547,9 @@ function setupEventListeners() {
 
   // Custom Exercise Creation Modal
   DOM.btnCreateExerciseModalTrigger.addEventListener('click', () => {
+    document.getElementById('modal-create-exercise-title').textContent = 'Neue eigene Übung';
+    document.getElementById('btn-submit-create-exercise').textContent = 'Übung erstellen';
+    delete DOM.formCreateExercise.dataset.editId;
     DOM.customExerciseName.value = '';
     openModal(DOM.modalCreateExercise);
   });
@@ -557,11 +561,18 @@ function setupEventListeners() {
     e.preventDefault();
     const name = DOM.customExerciseName.value.trim();
     const category = DOM.customExerciseCategory.value;
+    const editId = DOM.formCreateExercise.dataset.editId;
+    
     if (name) {
-      addExercise(name, category);
+      if (editId) {
+        updateExercise(editId, name, category);
+        showToast('Übung aktualisiert.', 'success');
+      } else {
+        addExercise(name, category);
+        showToast('Neue Übung erstellt.', 'success');
+      }
       closeModal(DOM.modalCreateExercise);
       renderExercisesLibrary();
-      showToast('Neue Übung erstellt.', 'success');
     }
   });
 
@@ -679,10 +690,11 @@ function setupEventListeners() {
     }
   });
 
-  // Delegated triggers in Exercise Library (Add directly or delete custom)
+  // Delegated triggers in Exercise Library (Add directly, edit, or delete custom)
   DOM.exercisesList.addEventListener('click', async (e) => {
     const addBtn = e.target.closest('.btn-add-exercise-to-workout');
     const deleteBtn = e.target.closest('.btn-delete-custom-ex');
+    const editBtn = e.target.closest('.btn-edit-exercise');
     
     if (addBtn) {
       const exId = addBtn.dataset.exId;
@@ -691,6 +703,19 @@ function setupEventListeners() {
         addExerciseToActiveWorkout(ex);
         switchView('workout');
       }
+    }
+    
+    if (editBtn) {
+      const exId = editBtn.dataset.exId;
+      const exName = editBtn.dataset.exName;
+      const exCat = editBtn.dataset.exCategory;
+      
+      document.getElementById('modal-create-exercise-title').textContent = 'Übung bearbeiten';
+      document.getElementById('btn-submit-create-exercise').textContent = 'Speichern';
+      DOM.formCreateExercise.dataset.editId = exId;
+      DOM.customExerciseName.value = exName;
+      DOM.customExerciseCategory.value = exCat;
+      openModal(DOM.modalCreateExercise);
     }
     
     if (deleteBtn) {

@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=15">
+  <link rel="stylesheet" href="css/style.css?v=16">
   
   <!-- Firebase SDKs (v9+ compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -260,7 +260,7 @@
   <div id="modal-create-exercise" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Neue eigene Übung</h2>
+        <h2 id="modal-create-exercise-title">Neue eigene Übung</h2>
         <button id="btn-close-create-modal" class="btn-modal-close"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <form id="form-create-exercise" onsubmit="return false;">
@@ -325,7 +325,7 @@
     </div>
   </div>
 
-  <!-- App JavaScript Modules -->
-  <script type="module" src="js/app.js"></script>
+  <!-- Core App Logic -->
+  <script type="module" src="js/app.js?v=16" defer></script>
 </body>
 </html>

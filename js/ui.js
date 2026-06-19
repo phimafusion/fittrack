@@ -315,6 +315,11 @@ export function uiRenderExercisesLibrary(
             <i class="fa-solid fa-plus"></i>
           </button>
         ` : ''}
+        ${!forSelectionModal ? `
+          <button class="btn-edit-exercise" data-ex-id="${ex.id}" data-ex-name="${ex.name}" data-ex-category="${ex.category}" title="Übung bearbeiten" style="background: none; border: none; color: var(--accent-secondary); font-size: 1.1rem; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 32px; width: 32px; border-radius: 50%;">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </button>
+        ` : ''}
         ${isCustom && !forSelectionModal ? `
           <button class="btn-delete-custom-ex" data-ex-id="${ex.id}" title="Eigene Übung löschen">
             <i class="fa-solid fa-trash-can"></i>
