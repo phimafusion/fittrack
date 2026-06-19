@@ -146,6 +146,7 @@ export async function cancelWorkout() {
     if (isBrowserEnv && DOM.workoutTimer) {
       clearInterval(timerInterval);
       DOM.workoutTimer.style.display = 'none';
+      hideRestTimerOverlay();
       if (isEditing) {
         switchView('history');
       } else {
@@ -222,6 +223,7 @@ export async function finishWorkout() {
   if (isBrowserEnv && DOM.workoutTimer) {
     clearInterval(timerInterval);
     DOM.workoutTimer.style.display = 'none';
+    hideRestTimerOverlay();
     switchView('history');
     showToast(isEditing ? 'Training aktualisiert!' : 'Training abgeschlossen!', 'success');
   }
