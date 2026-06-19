@@ -361,12 +361,12 @@ export function updateExercise(id, name, category) {
     }
   });
   
-  if (historyUpdated) {
+  if (historyUpdatedCount > 0) {
     localStorage.setItem('workouts', JSON.stringify(workouts));
     window.dispatchEvent(new CustomEvent('db-updated'));
   }
 
-  return updatedEx;
+  return { updatedEx, historyUpdatedCount };
 }
 
 /**
