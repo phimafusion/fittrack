@@ -9,6 +9,7 @@ import { showToast } from './toast.js';
 let timerInterval = null;
 let timeLeft = 0;
 let totalDuration = 0;
+let endTime = 0; // Absolute timestamp for when the timer should end
 let currentExerciseName = '';
 let audioCtx = null;
 
@@ -131,6 +132,7 @@ export function startRestTimer(durationSeconds, exerciseName = '') {
 
   timeLeft = durationSeconds;
   totalDuration = durationSeconds;
+  endTime = Date.now() + (durationSeconds * 1000);
   currentExerciseName = exerciseName;
 
   const overlay = document.getElementById('rest-timer-overlay');
@@ -142,7 +144,8 @@ export function startRestTimer(durationSeconds, exerciseName = '') {
   uiUpdateRestTimer(timeLeft, totalDuration, currentExerciseName);
 
   timerInterval = setInterval(() => {
-    timeLeft--;
+    // Calculate precise time left using absolute timestamps
+    timeLeft = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
     
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
@@ -164,8 +167,11 @@ export function startRestTimer(durationSeconds, exerciseName = '') {
 export function adjustRestTimer(seconds) {
   if (!timerInterval && timeLeft <= 0) return;
 
-  // Adjust remaining time (ensure it doesn't go below 0)
-  timeLeft = Math.max(0, timeLeft + seconds);
+  // Adjust absolute end time
+  endTime += (seconds * 1000);
+  
+  // Recompute time left immediately
+  timeLeft = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
   
   // Also adjust total duration if timeLeft exceeds totalDuration
   if (timeLeft > totalDuration) {
@@ -181,6 +187,24 @@ export function adjustRestTimer(seconds) {
     hideRestTimerOverlay();
   } else {
     uiUpdateRestTimer(timeLeft, totalDuration, currentExerciseName);
+  }
+}
+
+/**
+ * Force an immediate UI update (useful when app wakes from background)
+ */
+export function forceTimerSync() {
+  if (timerInterval && endTime > 0) {
+    timeLeft = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      playBeep();
+      showToast('Pause beendet! Nächster Satz!', 'info');
+      hideRestTimerOverlay();
+    } else {
+      uiUpdateRestTimer(timeLeft, totalDuration, currentExerciseName);
+    }
   }
 }
 

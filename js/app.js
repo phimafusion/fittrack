@@ -43,6 +43,8 @@ import {
   showToast
 } from './toast.js';
 
+import { forceTimerSync } from './timer.js';
+
 import {
   startRestTimer,
   adjustRestTimer,
@@ -422,6 +424,16 @@ function closeModal(modal) {
 // --- Event Listeners and Setup ---
 function setupEventListeners() {
   if (!isBrowserEnv || !DOM.views) return;
+
+  // Sync timers when returning from background
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      forceTimerSync();
+      if (activeWorkout && timerInterval) {
+        updateTimerUI();
+      }
+    }
+  });
 
   // SPA Navigation Tabs
   DOM.navTabs.forEach(tab => {
