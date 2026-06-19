@@ -13,7 +13,8 @@ import {
   updateWorkout,
   initDB,
   syncDatabaseWithFirebase,
-  mergeLocalDataToCloud
+  mergeLocalDataToCloud,
+  getPersonalRecords
 } from './db.js';
 
 import {
@@ -211,6 +212,41 @@ export async function finishWorkout() {
     exercises: loggedExercises
   };
 
+  // Check for Personal Records if it's not an edit (or even if it is, it's nice to know)
+  const oldPRs = getPersonalRecords();
+  let newPrMessages = [];
+
+  loggedExercises.forEach(ex => {
+    let maxWeightThisWorkout = 0;
+    let max1RMThisWorkout = 0;
+    
+    ex.sets.forEach(set => {
+      if (set.completed || (set.weight > 0 && set.reps > 0)) {
+        const wgt = parseFloat(set.weight) || 0;
+        const reps = parseInt(set.reps) || 0;
+        if (wgt > maxWeightThisWorkout) maxWeightThisWorkout = wgt;
+        
+        const calculated1RM = Math.round((wgt * (1 + reps / 30)) * 10) / 10;
+        if (calculated1RM > max1RMThisWorkout) max1RMThisWorkout = calculated1RM;
+      }
+    });
+
+    const oldPR = oldPRs[ex.id];
+    let beatWeight = false;
+    let beat1RM = false;
+
+    if (!oldPR) {
+      if (maxWeightThisWorkout > 0) beatWeight = true;
+    } else {
+      if (maxWeightThisWorkout > oldPR.maxWeight) beatWeight = true;
+      if (max1RMThisWorkout > oldPR.max1RM) beat1RM = true;
+    }
+
+    if (beatWeight || beat1RM) {
+      newPrMessages.push(`Neuer PR bei ${ex.name}! 🏆`);
+    }
+  });
+
   const isEditing = activeWorkout.isEditing;
   if (isEditing) {
     updateWorkout(completedWorkout);
@@ -226,6 +262,11 @@ export async function finishWorkout() {
     hideRestTimerOverlay();
     switchView('history');
     showToast(isEditing ? 'Training aktualisiert!' : 'Training abgeschlossen!', 'success');
+    
+    // Show PR toasts sequentially
+    newPrMessages.forEach((msg, idx) => {
+      setTimeout(() => showToast(msg, 'success'), (idx + 1) * 800);
+    });
   }
 }
 
@@ -397,7 +438,8 @@ export function renderActiveWorkout() {
     DOM.workoutNameInput,
     DOM.workoutExerciseCount,
     DOM.btnFinishWorkout,
-    DOM.btnCancelWorkout
+    DOM.btnCancelWorkout,
+    getPersonalRecords()
   );
 }
 
@@ -413,7 +455,8 @@ export function renderExercisesLibrary(container = DOM.exercisesList, searchInpu
     exerciseFilter,
     container,
     query,
-    forSelectionModal
+    forSelectionModal,
+    getPersonalRecords()
   );
 }
 

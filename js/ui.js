@@ -83,7 +83,8 @@ export function uiRenderActiveWorkout(
   nameInputEl, 
   exerciseCountEl, 
   btnFinishEl, 
-  btnCancelEl
+  btnCancelEl,
+  personalRecords = null
 ) {
   if (!emptyStateEl || !activeUIEl) return;
 
@@ -119,12 +120,18 @@ export function uiRenderActiveWorkout(
   exercisesListEl.innerHTML = '';
 
   activeWorkout.exercises.forEach((ex, exIdx) => {
+    const pr = personalRecords ? personalRecords[ex.id] : null;
+    const prText = pr ? `<span class="active-pr-text" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin-left: 8px;">(PR: ${pr.maxWeight}kg | 1RM: ${pr.max1RM}kg)</span>` : '';
+
     const card = document.createElement('div');
     card.className = 'exercise-card';
     card.innerHTML = `
       <div class="exercise-card-header">
         <div class="exercise-title-info">
-          <span class="exercise-name">${ex.name}</span>
+          <div style="display: flex; align-items: baseline;">
+            <span class="exercise-name">${ex.name}</span>
+            ${prText}
+          </div>
           <span class="exercise-category">${ex.category}</span>
         </div>
         <button class="btn-card-delete" data-ex-idx="${exIdx}" title="Übung entfernen">
@@ -271,7 +278,8 @@ export function uiRenderExercisesLibrary(
   exerciseFilter,
   container,
   query = '',
-  forSelectionModal = false
+  forSelectionModal = false,
+  personalRecords = null
 ) {
   if (!container) return;
 
@@ -293,11 +301,13 @@ export function uiRenderExercisesLibrary(
     item.className = 'exercise-item';
     
     const isCustom = ex.id.includes('_17') || ex.id.includes('_18') || ex.id.includes('_19');
+    const pr = personalRecords ? personalRecords[ex.id] : null;
 
     item.innerHTML = `
       <div class="exercise-item-info">
         <span class="exercise-item-name">${ex.name}</span>
         <span class="exercise-item-category">${ex.category}</span>
+        ${pr ? `<div class="exercise-pr-badge"><i class="fa-solid fa-trophy"></i> Max: ${pr.maxWeight} kg | 1RM: ${pr.max1RM} kg</div>` : ''}
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
         ${activeWorkout ? `

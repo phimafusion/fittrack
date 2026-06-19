@@ -1415,3 +1415,17 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+/* PR Badge in Library */
+.exercise-pr-badge {
+  font-size: 0.75rem;
+  color: #fbbf24; /* amber-400 */
+  background: rgba(251, 191, 36, 0.1);
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-weight: 600;
+}

@@ -383,6 +383,201 @@ export function deleteWorkout(id) {
 }
 
 /**
+  cachedWorkouts = JSON.parse(localStorage.getItem('workouts')) || [];
+}
+
+// Call initialization immediately
+initDB();
+
+/**
+ * Real-time Firestore sync setup for authenticated user
+ */
+export function syncDatabaseWithFirebase(user) {
+  // Clear any existing active listeners
+  if (exercisesUnsubscribe) {
+    exercisesUnsubscribe();
+    exercisesUnsubscribe = null;
+  }
+  if (workoutsUnsubscribe) {
+    workoutsUnsubscribe();
+    workoutsUnsubscribe = null;
+  }
+
+  // Wait for Firebase to finish initializing before setting up collection listeners
+  firebaseReady.then(() => {
+    if (!dbFirestore || !user) {
+      // Logged out / guest mode: fall back to LocalStorage
+      initDB();
+      window.dispatchEvent(new CustomEvent('db-updated'));
+      return;
+    }
+
+    // 1. Sync Exercises
+    exercisesUnsubscribe = dbFirestore.collection('users').doc(user.uid).collection('exercises')
+      .onSnapshot(snapshot => {
+        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (list.length === 0) {
+          // First time initialization in the cloud: upload German defaults
+          DEFAULT_EXERCISES.forEach(ex => {
+            dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(ex.id).set(ex);
+          });
+          cachedExercises = [...DEFAULT_EXERCISES];
+        } else {
+          cachedExercises = list;
+        }
+        localStorage.setItem('exercises', JSON.stringify(cachedExercises));
+        window.dispatchEvent(new CustomEvent('db-updated'));
+      }, err => {
+        console.error('Firestore exercises sync error:', err);
+      });
+
+    // 2. Sync Workouts
+    workoutsUnsubscribe = dbFirestore.collection('users').doc(user.uid).collection('workouts')
+      .orderBy('date', 'desc')
+      .onSnapshot(snapshot => {
+        cachedWorkouts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        localStorage.setItem('workouts', JSON.stringify(cachedWorkouts));
+        window.dispatchEvent(new CustomEvent('db-updated'));
+      }, err => {
+        console.error('Firestore workouts sync error:', err);
+      });
+  });
+}
+
+/**
+ * Merge local guest workouts and custom exercises to cloud profile on sign-in
+ */
+export async function mergeLocalDataToCloud(uid) {
+  await firebaseReady;
+  if (!dbFirestore || !uid) return;
+
+  try {
+    // 1. Merge exercises (only custom ones)
+    const localExercises = JSON.parse(localStorage.getItem('exercises')) || [];
+    const oldDefaultIds = new Set([
+      'bench_press', 'incline_dumbbells', 'chest_fly', 'squats', 'barbell_squats',
+      'leg_press', 'leg_extension', 'leg_curl', 'deadlift', 'pullups',
+      'lat_pulldown', 'barbell_row', 'overhead_press', 'lateral_raise',
+      'bicep_curl', 'hammer_curl', 'tricep_pushdown', 'skull_crusher',
+      'plank', 'crunches'
+    ]);
+    const customExercises = localExercises.filter(ex => !oldDefaultIds.has(ex.id));
+    
+    for (const ex of customExercises) {
+      await dbFirestore.collection('users').doc(uid).collection('exercises').doc(ex.id).set(ex);
+    }
+
+    // 2. Merge workouts
+    const localWorkouts = JSON.parse(localStorage.getItem('workouts')) || [];
+    for (const w of localWorkouts) {
+      await dbFirestore.collection('users').doc(uid).collection('workouts').doc(w.id).set(w);
+    }
+
+    console.log('Local guest data merged to Firebase Cloud successfully.');
+  } catch (error) {
+    console.error('Failed to merge local data to Firebase Cloud:', error);
+  }
+}
+
+/**
+ * Fetch all available exercises (returns cached memory representation immediately)
+ */
+export function getExercises() {
+  return cachedExercises.length > 0 ? cachedExercises : DEFAULT_EXERCISES;
+}
+
+/**
+ * Add a new custom exercise
+ */
+export function addExercise(name, category) {
+  if (!name || !category) return null;
+  
+  const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now();
+  const newEx = { id, name, category };
+
+  const user = getCurrentUser();
+  if (dbFirestore && user) {
+    dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(id).set(newEx)
+      .catch(err => console.error('Firestore save custom exercise failed:', err));
+  } else {
+    // Guest fallback
+    cachedExercises.push(newEx);
+    localStorage.setItem('exercises', JSON.stringify(cachedExercises));
+    window.dispatchEvent(new CustomEvent('db-updated'));
+  }
+
+  return newEx;
+}
+
+/**
+ * Delete a custom exercise
+ */
+export function deleteExercise(id) {
+  // Don't delete defaults
+  if (DEFAULT_EXERCISES.some(ex => ex.id === id)) {
+    return false;
+  }
+
+  const user = getCurrentUser();
+  if (dbFirestore && user) {
+    dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(id).delete()
+      .catch(err => console.error('Firestore delete custom exercise failed:', err));
+  } else {
+    // Guest fallback
+    cachedExercises = cachedExercises.filter(ex => ex.id !== id);
+    localStorage.setItem('exercises', JSON.stringify(cachedExercises));
+    window.dispatchEvent(new CustomEvent('db-updated'));
+  }
+
+  return true;
+}
+
+/**
+ * Fetch all completed workouts (returns cached memory representation immediately)
+ */
+export function getWorkouts() {
+  return cachedWorkouts;
+}
+
+/**
+ * Save a new workout to history
+ */
+export function saveWorkout(workout) {
+  if (!workout) return;
+  workout.id = workout.id || 'wo_' + Date.now();
+  workout.date = workout.date || new Date().toISOString();
+
+  const user = getCurrentUser();
+  if (dbFirestore && user) {
+    dbFirestore.collection('users').doc(user.uid).collection('workouts').doc(workout.id).set(workout)
+      .catch(err => console.error('Firestore save workout failed:', err));
+  } else {
+    // Guest fallback
+    cachedWorkouts.unshift(workout);
+    localStorage.setItem('workouts', JSON.stringify(cachedWorkouts));
+    window.dispatchEvent(new CustomEvent('db-updated'));
+  }
+
+  return workout;
+}
+
+/**
+ * Delete a completed workout from history
+ */
+export function deleteWorkout(id) {
+  const user = getCurrentUser();
+  if (dbFirestore && user) {
+    dbFirestore.collection('users').doc(user.uid).collection('workouts').doc(id).delete()
+      .catch(err => console.error('Firestore delete workout failed:', err));
+  } else {
+    // Guest fallback
+    cachedWorkouts = cachedWorkouts.filter(w => w.id !== id);
+    localStorage.setItem('workouts', JSON.stringify(cachedWorkouts));
+    window.dispatchEvent(new CustomEvent('db-updated'));
+  }
+}
+
+/**
  * Update an existing workout in history
  */
 export function updateWorkout(updatedWorkout) {
@@ -404,4 +599,43 @@ export function updateWorkout(updatedWorkout) {
     }
   }
   return null;
+}
+
+/**
+ * Calculate Personal Records dynamically from history
+ * Returns a map: { [exerciseId]: { maxWeight: number, max1RM: number } }
+ */
+export function getPersonalRecords() {
+  const prs = {};
+  const workouts = getWorkouts();
+  
+  workouts.forEach(w => {
+    if (!w.exercises) return;
+    
+    w.exercises.forEach(ex => {
+      if (!ex.id || !ex.sets) return;
+      
+      ex.sets.forEach(set => {
+        // Only consider sets that were either explicitly completed or have actual values
+        if (set.completed || (set.weight > 0 && set.reps > 0)) {
+          const wgt = parseFloat(set.weight) || 0;
+          const reps = parseInt(set.reps) || 0;
+          
+          if (wgt > 0 && reps > 0) {
+            // Epley Formula for 1RM: Weight * (1 + Reps/30)
+            const calculated1RM = Math.round((wgt * (1 + reps / 30)) * 10) / 10; // Round to 1 decimal
+            
+            if (!prs[ex.id]) {
+              prs[ex.id] = { maxWeight: wgt, max1RM: calculated1RM };
+            } else {
+              if (wgt > prs[ex.id].maxWeight) prs[ex.id].maxWeight = wgt;
+              if (calculated1RM > prs[ex.id].max1RM) prs[ex.id].max1RM = calculated1RM;
+            }
+          }
+        }
+      });
+    });
+  });
+  
+  return prs;
 }
