@@ -300,7 +300,6 @@ export function uiRenderExercisesLibrary(
     const item = document.createElement('div');
     item.className = 'exercise-item';
     
-    const isCustom = ex.id.includes('_17') || ex.id.includes('_18') || ex.id.includes('_19');
     const pr = personalRecords ? personalRecords[ex.id] : null;
 
     item.innerHTML = `
@@ -320,8 +319,8 @@ export function uiRenderExercisesLibrary(
             <i class="fa-solid fa-pen-to-square"></i>
           </button>
         ` : ''}
-        ${isCustom && !forSelectionModal ? `
-          <button class="btn-delete-custom-ex" data-ex-id="${ex.id}" title="Eigene Übung löschen">
+        ${!forSelectionModal ? `
+          <button class="btn-delete-custom-ex" data-ex-id="${ex.id}" title="Übung löschen">
             <i class="fa-solid fa-trash-can"></i>
           </button>
         ` : ''}

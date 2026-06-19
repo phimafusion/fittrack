@@ -370,13 +370,9 @@ export function updateExercise(id, name, category) {
 }
 
 /**
- * Delete a custom exercise
+ * Delete an exercise
  */
 export function deleteExercise(id) {
-  // Don't delete defaults
-  if (DEFAULT_EXERCISES.some(ex => ex.id === id)) {
-    return false;
-  }
 
   const user = getCurrentUser();
   if (dbFirestore && user) {

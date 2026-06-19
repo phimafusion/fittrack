@@ -729,7 +729,7 @@ function setupEventListeners() {
       
       const dialogModal = document.getElementById('custom-dialog-modal');
       let proceed = false;
-      let msg = 'Möchtest du diese eigene Übung wirklich dauerhaft löschen?';
+      let msg = 'Möchtest du diese Übung wirklich dauerhaft aus der Bibliothek löschen?';
       let title = 'Übung löschen';
       
       if (isUsedInHistory) {
