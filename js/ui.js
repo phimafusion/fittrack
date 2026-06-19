@@ -289,7 +289,7 @@ export function uiRenderExercisesLibrary(
     const matchesSearch = ex.name.toLowerCase().includes(query) || ex.category.toLowerCase().includes(query);
     const matchesCategory = forSelectionModal || exerciseFilter === 'all' || ex.category.toLowerCase() === exerciseFilter;
     return matchesSearch && matchesCategory;
-  });
+  }).sort((a, b) => a.name.localeCompare(b.name, 'de'));
 
   if (filtered.length === 0) {
     container.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 20px;">Keine Übungen gefunden.</p>`;
