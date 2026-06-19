@@ -150,12 +150,31 @@ header h1 {
 }
 
 .view.active {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 75px - 80px); /* Fill screen minus header and nav */
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sticky Action Bar for Mobile */
+.action-bar-sticky {
+  position: sticky;
+  bottom: calc(75px + var(--safe-bottom));
+  background: rgba(11, 15, 25, 0.95);
+  backdrop-filter: blur(10px);
+  margin-left: -20px;
+  margin-right: -20px;
+  margin-bottom: -20px; /* Counteract .view padding */
+  padding: 15px 20px;
+  border-top: 1px solid var(--border-color);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* Buttons Styling */
@@ -260,13 +279,15 @@ header h1 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 20px;
   text-align: center;
   color: var(--text-secondary);
   border: 2px dashed var(--border-color);
   border-radius: var(--border-radius-lg);
   margin-top: 20px;
+  margin-bottom: 20px;
   gap: 16px;
+  flex: 1; /* Take up available space */
 }
 
 .empty-state i {
