@@ -540,7 +540,7 @@ function setupEventListeners() {
       const exIdx = parseInt(btnWeightMinus.dataset.exIdx);
       const setIdx = parseInt(btnWeightMinus.dataset.setIdx);
       const set = activeWorkout.exercises[exIdx].sets[setIdx];
-      set.weight = Math.max(0, set.weight - 2.5);
+      set.weight = Math.max(0, set.weight - 1);
       saveActiveWorkoutState();
       renderActiveWorkout();
     }
@@ -549,7 +549,7 @@ function setupEventListeners() {
       const exIdx = parseInt(btnWeightPlus.dataset.exIdx);
       const setIdx = parseInt(btnWeightPlus.dataset.setIdx);
       const set = activeWorkout.exercises[exIdx].sets[setIdx];
-      set.weight = set.weight + 2.5;
+      set.weight = set.weight + 1;
       saveActiveWorkoutState();
       renderActiveWorkout();
     }
