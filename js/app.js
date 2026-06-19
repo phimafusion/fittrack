@@ -177,16 +177,21 @@ export async function finishWorkout() {
   
   loggedExercises.forEach(ex => {
     ex.sets.forEach(set => {
-      if (set.completed) {
-        totalVolume += (set.weight * set.reps);
-        completedSetsCount++;
+      // Calculate volume if completed OR if reps were entered
+      if (set.completed || set.reps > 0) {
+        const weight = parseFloat(set.weight) || 0;
+        const reps = parseInt(set.reps) || 0;
+        totalVolume += (weight * reps);
+        if (set.completed) completedSetsCount++;
       }
     });
   });
 
-  const durationMinutes = activeWorkout.isEditing 
-    ? activeWorkout.duration 
-    : Math.round((Date.now() - activeWorkout.startTime) / 1000 / 60);
+  const durationSeconds = activeWorkout.isEditing 
+    ? (activeWorkout.durationSeconds || (activeWorkout.duration * 60)) 
+    : Math.round((Date.now() - activeWorkout.startTime) / 1000);
+
+  const durationMinutes = Math.round(durationSeconds / 60);
 
   const dateStr = activeWorkout.isEditing
     ? activeWorkout.date
@@ -197,6 +202,7 @@ export async function finishWorkout() {
     name: activeWorkout.name,
     date: dateStr,
     duration: durationMinutes,
+    durationSeconds: durationSeconds,
     volume: totalVolume,
     exercises: loggedExercises
   };

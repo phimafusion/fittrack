@@ -207,6 +207,13 @@ export function uiRenderHistory(workouts, listContainerEl, emptyStateEl) {
       minute: '2-digit'
     });
 
+    let durationDisplay = `${w.duration} min`;
+    if (w.durationSeconds !== undefined) {
+      const m = Math.floor(w.durationSeconds / 60);
+      const s = w.durationSeconds % 60;
+      durationDisplay = `${m}m ${s}s`;
+    }
+
     const card = document.createElement('div');
     card.className = 'history-card';
     card.innerHTML = `
@@ -227,7 +234,7 @@ export function uiRenderHistory(workouts, listContainerEl, emptyStateEl) {
 
       <div class="history-stats">
         <span class="history-stat">
-          <i class="fa-regular fa-clock"></i> ${w.duration} min
+          <i class="fa-regular fa-clock"></i> ${durationDisplay}
         </span>
         <span class="history-stat">
           <i class="fa-solid fa-weight-hanging"></i> ${w.volume} kg
