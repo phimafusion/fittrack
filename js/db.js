@@ -339,7 +339,7 @@ export function updateExercise(id, name, category) {
   }
 
   // Propagate edit to history (all past workouts)
-  let historyUpdated = false;
+  let historyUpdatedCount = 0;
   const workouts = getWorkouts();
   workouts.forEach(w => {
     let workoutChanged = false;
@@ -353,7 +353,7 @@ export function updateExercise(id, name, category) {
       });
     }
     if (workoutChanged) {
-      historyUpdated = true;
+      historyUpdatedCount++;
       if (dbFirestore && user) {
         dbFirestore.collection('users').doc(user.uid).collection('workouts').doc(w.id).set(w)
           .catch(err => console.error('Firestore history propagation failed:', err));

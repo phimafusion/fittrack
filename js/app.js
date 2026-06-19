@@ -565,8 +565,12 @@ function setupEventListeners() {
     
     if (name) {
       if (editId) {
-        updateExercise(editId, name, category);
-        showToast('Übung aktualisiert.', 'success');
+        const res = updateExercise(editId, name, category);
+        if (res && res.historyUpdatedCount > 0) {
+          showToast(`Übung aktualisiert (auch in ${res.historyUpdatedCount} alten Trainings).`, 'success');
+        } else {
+          showToast('Übung aktualisiert.', 'success');
+        }
       } else {
         addExercise(name, category);
         showToast('Neue Übung erstellt.', 'success');
