@@ -149,16 +149,10 @@ header h1 {
 }
 
 .view.active {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
+  display: block;
+  height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-}
-
-.view.active > * {
-  flex: 0 0 auto;
-  min-height: min-content;
 }
 
 @keyframes fadeIn {
@@ -170,7 +164,7 @@ header h1 {
 .action-bar-sticky {
   position: sticky;
   bottom: -20px; /* Counteract .view padding */
-  margin-top: auto; /* Push to bottom if content is small */
+  margin-top: 20px;
   background: rgba(11, 15, 25, 0.95);
   backdrop-filter: blur(10px);
   margin-left: -20px;
@@ -291,7 +285,7 @@ header h1 {
   margin-top: 20px;
   margin-bottom: 20px;
   gap: 16px;
-  flex: 1; /* Take up available space */
+  min-height: calc(100vh - 250px);
 }
 
 .empty-state i {
