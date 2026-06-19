@@ -64,7 +64,8 @@ QUnit.module('FitTrack Test Suite', hooks => {
 
     QUnit.test('Custom Exercise Addition', assert => {
       const initialCount = getExercises().length;
-      const newEx = addExercise('Beinpresse schräg', 'Beine');
+      const res = addExercise('Beinpresse schräg', 'Beine');
+      const newEx = res.newEx;
       
       assert.ok(newEx, 'Custom exercise should be returned');
       assert.equal(newEx.name, 'Beinpresse schräg', 'Name matches custom name');
@@ -76,14 +77,17 @@ QUnit.module('FitTrack Test Suite', hooks => {
       assert.ok(exercises.some(e => e.id === newEx.id), 'Custom exercise is stored');
     });
 
-    QUnit.test('Default Exercise Deletion Restraint', assert => {
+    QUnit.test('Default Exercise Deletion', assert => {
+      // Default exercises can now be deleted (guard was intentionally removed)
+      const countBefore = getExercises().length;
       const result = deleteExercise('bench_press');
-      assert.notOk(result, 'Deleting default exercise should return false');
-      assert.ok(getExercises().some(e => e.id === 'bench_press'), 'Default exercise is preserved');
+      assert.ok(result, 'Deleting default exercise should now return true (guard removed)');
+      assert.ok(getExercises().length < countBefore, 'Default exercise is removed from library');
     });
 
     QUnit.test('Custom Exercise Deletion', assert => {
-      const newEx = addExercise('Preacher Curls', 'Arme');
+      const res = addExercise('Preacher Curls', 'Arme');
+      const newEx = res.newEx;
       const result = deleteExercise(newEx.id);
       
       assert.ok(result, 'Deleting custom exercise should return true');
