@@ -8,6 +8,7 @@ import {
   addExercise, 
   deleteExercise, 
   updateExercise,
+  resetDefaultExercises,
   getWorkouts, 
   saveWorkout, 
   deleteWorkout,
@@ -544,6 +545,26 @@ function setupEventListeners() {
   DOM.modalExerciseSearchInput.addEventListener('input', () => {
     renderExercisesLibrary(DOM.modalExercisesList, DOM.modalExerciseSearchInput, true);
   });
+
+  // Reset Default Exercises
+  const btnResetDefaults = document.getElementById('btn-reset-default-exercises');
+  if (btnResetDefaults) {
+    btnResetDefaults.addEventListener('click', async () => {
+      const dialogModal = document.getElementById('custom-dialog-modal');
+      let proceed = false;
+      const msg = 'Alle Standardübungen werden auf ihren ursprünglichen Namen und ihre ursprüngliche Kategorie zurückgesetzt. Eigene Übungen bleiben erhalten. Fortfahren?';
+      if (dialogModal) {
+        proceed = await showCustomConfirm('Standardübungen zurücksetzen', msg);
+      } else {
+        proceed = confirm(msg);
+      }
+      if (proceed) {
+        resetDefaultExercises();
+        renderExercisesLibrary();
+        showToast('Standardübungen wurden wiederhergestellt.', 'success');
+      }
+    });
+  }
 
   // Custom Exercise Creation Modal
   DOM.btnCreateExerciseModalTrigger.addEventListener('click', () => {

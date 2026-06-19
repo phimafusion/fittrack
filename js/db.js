@@ -370,6 +370,34 @@ export function updateExercise(id, name, category) {
 }
 
 /**
+ * Reset all default exercises back to their original names/categories.
+ * Custom exercises (non-default IDs) are preserved.
+ */
+export function resetDefaultExercises() {
+  const user = getCurrentUser();
+
+  DEFAULT_EXERCISES.forEach(defaultEx => {
+    if (dbFirestore && user) {
+      dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(defaultEx.id).set(defaultEx)
+        .catch(err => console.error('Firestore reset default exercise failed:', err));
+    } else {
+      // Guest: update in cache (or add if missing)
+      const idx = cachedExercises.findIndex(ex => ex.id === defaultEx.id);
+      if (idx !== -1) {
+        cachedExercises[idx] = { ...defaultEx };
+      } else {
+        cachedExercises.push({ ...defaultEx });
+      }
+    }
+  });
+
+  if (!dbFirestore || !user) {
+    localStorage.setItem('exercises', JSON.stringify(cachedExercises));
+    window.dispatchEvent(new CustomEvent('db-updated'));
+  }
+}
+
+/**
  * Delete an exercise
  */
 export function deleteExercise(id) {
