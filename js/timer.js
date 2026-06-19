@@ -33,6 +33,21 @@ export function setDefaultRestDuration(seconds) {
 }
 
 /**
+ * Check if the rest timer is enabled globally
+ */
+export function isRestTimerEnabled() {
+  const stored = localStorage.getItem('rest_timer_enabled');
+  return stored !== 'false'; // Default is true
+}
+
+/**
+ * Enable or disable the rest timer
+ */
+export function setRestTimerEnabled(enabled) {
+  localStorage.setItem('rest_timer_enabled', enabled ? 'true' : 'false');
+}
+
+/**
  * Initialize Web Audio Context safely on user interaction
  */
 function getAudioContext() {
@@ -122,6 +137,8 @@ export function hideRestTimerOverlay() {
  * Start the rest timer countdown
  */
 export function startRestTimer(durationSeconds, exerciseName = '') {
+  if (!isRestTimerEnabled()) return;
+
   // If a timer is already running, clear it first
   if (timerInterval) {
     clearInterval(timerInterval);

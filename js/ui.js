@@ -58,6 +58,10 @@ export function cacheDOM() {
   DOM.btnSubmitRegister = document.getElementById('btn-submit-register');
   DOM.btnGoogleLogin = document.getElementById('btn-google-login');
 
+  // Settings DOM
+  DOM.settingTimerEnabled = document.getElementById('setting-timer-enabled');
+  DOM.settingTimerDuration = document.getElementById('setting-timer-duration');
+
   // Rest Timer DOM elements
   DOM.restTimerOverlay = document.getElementById('rest-timer-overlay');
   DOM.restTimerTitle = document.getElementById('rest-timer-title');

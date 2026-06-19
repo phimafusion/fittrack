@@ -49,7 +49,10 @@ import {
   startRestTimer,
   adjustRestTimer,
   hideRestTimerOverlay,
-  getDefaultRestDuration
+  getDefaultRestDuration,
+  setDefaultRestDuration,
+  isRestTimerEnabled,
+  setRestTimerEnabled
 } from './timer.js';
 
 
@@ -448,6 +451,21 @@ function setupEventListeners() {
     });
   });
 
+  // Settings UI Listeners
+  if (DOM.settingTimerEnabled) {
+    DOM.settingTimerEnabled.addEventListener('change', (e) => {
+      setRestTimerEnabled(e.target.checked);
+      showToast(e.target.checked ? 'Pausen-Timer aktiviert' : 'Pausen-Timer deaktiviert', 'info');
+    });
+  }
+  
+  if (DOM.settingTimerDuration) {
+    DOM.settingTimerDuration.addEventListener('change', (e) => {
+      setDefaultRestDuration(parseInt(e.target.value, 10));
+      showToast('Standardzeit auf ' + e.target.value + 's gesetzt', 'info');
+    });
+  }
+
   // Workout controls
   DOM.btnStartWorkout.addEventListener('click', startWorkout);
   DOM.btnCancelWorkout.addEventListener('click', cancelWorkout);
@@ -800,6 +818,15 @@ export function init() {
     }
     initDB();
     cacheDOM();
+    
+    // Initialize Settings UI from local storage
+    if (DOM.settingTimerEnabled) {
+      DOM.settingTimerEnabled.checked = isRestTimerEnabled();
+    }
+    if (DOM.settingTimerDuration) {
+      DOM.settingTimerDuration.value = getDefaultRestDuration().toString();
+    }
+
     setupEventListeners();
     loadActiveWorkoutState();
     switchView(currentView);
