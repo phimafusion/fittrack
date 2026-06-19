@@ -37,7 +37,7 @@
         <img src="icons/icon-192.png" alt="FitTrack Logo" class="app-logo">
         <h1>FitTrack</h1>
       </div>
-      <div id="workout-timer" class="timer-badge" style="display: none;">
+      <div id="workout-timer" class="timer-badge d-none">
         <i class="fa-regular fa-clock"></i>
         <span id="timer-text">00:00</span>
       </div>
@@ -56,7 +56,7 @@
       </div>
 
       <!-- Active Workout Session UI -->
-      <div id="workout-active-ui" style="display: none;">
+      <div id="workout-active-ui" class="d-none">
         <div class="workout-header">
           <div class="workout-title-row">
             <input type="text" id="workout-name-input" value="Training" aria-label="Name des Trainings">
@@ -86,7 +86,7 @@
 
     <!-- 2. History View -->
     <main id="view-history" class="view">
-      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px;">Trainingsverlauf</h2>
+      <h2 class="view-title">Trainingsverlauf</h2>
       
       <div id="history-empty-state" class="empty-state">
         <i class="fa-solid fa-clock-rotate-left"></i>
@@ -94,14 +94,14 @@
         <p>Deine beendeten Einheiten werden hier angezeigt. Bleib dran!</p>
       </div>
 
-      <div id="history-list" class="history-list" style="display: none;"></div>
+      <div id="history-list" class="history-list d-none"></div>
     </main>
 
     <!-- 3. Exercises Library View -->
     <main id="view-exercises" class="view">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h2 style="font-size: 1.25rem; font-weight: 700;">Übungsdatenbank</h2>
-        <div style="display: flex; gap: 8px;">
+      <div class="exercises-header">
+        <h2 class="view-title-no-margin">Übungsdatenbank</h2>
+        <div class="exercises-actions">
           <button id="btn-reset-default-exercises" class="btn btn-secondary btn-sm" title="Standardübungen wiederherstellen">
             <i class="fa-solid fa-arrow-rotate-left"></i> Standard
           </button>
@@ -134,10 +134,10 @@
 
     <!-- 4. Profile View -->
     <main id="view-profile" class="view">
-      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px;">Mein Profil</h2>
+      <h2 class="view-title">Mein Profil</h2>
       
       <!-- Profile Card (Logged In) -->
-      <div id="profile-logged-in" style="display: none;">
+      <div id="profile-logged-in" class="d-none">
         <div class="profile-card">
           <div class="profile-avatar">
             <i class="fa-solid fa-user-check"></i>
@@ -147,16 +147,16 @@
             <span class="profile-status"><i class="fa-solid fa-cloud-arrow-up"></i> Cloud-Synchronisierung aktiv</span>
           </div>
         </div>
-        <button id="btn-logout" class="btn btn-danger" style="margin-top: 20px;">
+        <button id="btn-logout" class="btn btn-danger mt-20">
           <i class="fa-solid fa-right-from-bracket"></i> Abmelden
         </button>
       </div>
 
       <!-- Auth Form Card (Logged Out) -->
-      <div id="profile-logged-out" style="display: block;">
+      <div id="profile-logged-out" class="d-block">
         <div class="auth-card">
           <h3>Mit Cloud synchronisieren</h3>
-          <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 20px;">
+          <p class="auth-description">
             Melde dich an, um deine Trainingseinheiten in der Cloud zu sichern und auf allen Geräten zu synchronisieren.
           </p>
 
@@ -170,11 +170,11 @@
               <input type="password" id="auth-password" class="form-input" placeholder="Mind. 6 Zeichen" required>
             </div>
             
-            <p id="auth-error-msg" style="color: var(--accent-danger); font-size: 0.85rem; margin-top: -8px; margin-bottom: 12px; display: none;"></p>
+            <p id="auth-error-msg" class="auth-error-msg"></p>
 
-            <div style="display: flex; gap: 10px;">
-              <button type="submit" id="btn-submit-login" class="btn btn-primary" style="flex: 1;">Einloggen</button>
-              <button type="button" id="btn-submit-register" class="btn btn-secondary" style="flex: 1;">Registrieren</button>
+            <div class="auth-buttons">
+              <button type="submit" id="btn-submit-login" class="btn btn-primary flex-1">Einloggen</button>
+              <button type="button" id="btn-submit-register" class="btn btn-secondary flex-1">Registrieren</button>
             </div>
           </form>
 
@@ -182,7 +182,7 @@
             <span>oder</span>
           </div>
 
-          <button id="btn-google-login" class="btn btn-secondary" style="width: 100%; gap: 10px;">
+          <button id="btn-google-login" class="btn btn-secondary btn-google">
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" alt="Google Logo">
             Mit Google anmelden
           </button>
@@ -191,7 +191,7 @@
 
       <!-- Settings Section -->
       <div class="settings-card">
-        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px;">Einstellungen</h3>
+        <h3 class="settings-title">Einstellungen</h3>
         
         <div class="setting-row">
           <div class="setting-info">
@@ -209,7 +209,7 @@
             <span class="setting-title">Pausen-Dauer</span>
             <span class="setting-desc">Standardzeit für den Timer</span>
           </div>
-          <select id="setting-timer-duration" class="form-select" style="width: auto; padding: 6px 30px 6px 12px; font-size: 0.9rem;">
+          <select id="setting-timer-duration" class="form-select setting-select">
             <option value="30">30 Sek.</option>
             <option value="60">60 Sek.</option>
             <option value="90">90 Sek.</option>
@@ -257,7 +257,7 @@
           <input type="text" id="modal-exercise-search-input" class="search-input" placeholder="Übung suchen...">
         </div>
       </div>
-      <div id="modal-exercises-list" class="exercises-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+      <div id="modal-exercises-list" class="exercises-list modal-exercises-list-wrapper"></div>
     </div>
   </div>
 
@@ -297,20 +297,20 @@
 
   <!-- Custom Dialog Confirmation Modal -->
   <div id="custom-dialog-modal" class="modal">
-    <div class="modal-content" style="max-width: 320px;">
-      <div class="modal-header" style="margin-bottom: 12px;">
+    <div class="modal-content modal-content-sm">
+      <div class="modal-header mb-12">
         <h2 id="custom-dialog-title">Bestätigen</h2>
       </div>
-      <p id="custom-dialog-message" style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 20px; line-height: 1.4;"></p>
-      <div class="modal-actions" style="margin-top: 0; gap: 10px;">
-        <button id="btn-custom-dialog-cancel" class="btn btn-secondary btn-sm" style="flex: 1; padding: 10px;">Abbrechen</button>
-        <button id="btn-custom-dialog-confirm" class="btn btn-primary btn-sm" style="flex: 1; padding: 10px;">Ja</button>
+      <p id="custom-dialog-message" class="dialog-message"></p>
+      <div class="modal-actions modal-actions-dialog">
+        <button id="btn-custom-dialog-cancel" class="btn btn-secondary btn-sm flex-1 p-10">Abbrechen</button>
+        <button id="btn-custom-dialog-confirm" class="btn btn-primary btn-sm flex-1 p-10">Ja</button>
       </div>
     </div>
   </div>
 
   <!-- Rest Timer Overlay -->
-  <div id="rest-timer-overlay" class="rest-timer-overlay" style="display: none;">
+  <div id="rest-timer-overlay" class="rest-timer-overlay d-none">
     <div class="rest-timer-content">
       <div class="rest-timer-header">
         <span id="rest-timer-title">Pause</span>

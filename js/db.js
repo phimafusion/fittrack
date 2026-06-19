@@ -62,6 +62,11 @@ let cachedWorkouts = [];
 let exercisesUnsubscribe = null;
 let workoutsUnsubscribe = null;
 
+function _saveExerciseToFirestore(user, ex) {
+  if (!dbFirestore || !user) return Promise.resolve();
+  return dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(ex.id).set(ex);
+}
+
 // Initialize localStorage keys if they don't exist and run local translation migrations
 export function initDB() {
   const isMigrated = localStorage.getItem('db_migrated_v3') === 'true';
@@ -224,7 +229,7 @@ export function syncDatabaseWithFirebase(user) {
         if (list.length === 0) {
           // First time initialization in the cloud: upload German defaults
           DEFAULT_EXERCISES.forEach(ex => {
-            dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(ex.id).set(ex);
+            _saveExerciseToFirestore(user, ex);
           });
           cachedExercises = [...DEFAULT_EXERCISES];
         } else {
@@ -269,7 +274,7 @@ export async function mergeLocalDataToCloud(uid) {
     const customExercises = localExercises.filter(ex => !oldDefaultIds.has(ex.id));
     
     for (const ex of customExercises) {
-      await dbFirestore.collection('users').doc(uid).collection('exercises').doc(ex.id).set(ex);
+      await _saveExerciseToFirestore({ uid }, ex);
     }
 
     // 2. Merge workouts
@@ -329,7 +334,7 @@ export function addExercise(name, category) {
 
   const user = getCurrentUser();
   if (dbFirestore && user) {
-    dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(id).set(newEx)
+    _saveExerciseToFirestore(user, newEx)
       .catch(err => console.error('Firestore save custom exercise failed:', err));
   } else {
     // Guest fallback: update if exists, otherwise push
@@ -356,7 +361,7 @@ export function updateExercise(id, name, category) {
 
   const user = getCurrentUser();
   if (dbFirestore && user) {
-    dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(id).set(updatedEx)
+    _saveExerciseToFirestore(user, updatedEx)
       .catch(err => console.error('Firestore update custom exercise failed:', err));
   } else {
     // Guest fallback
@@ -410,7 +415,7 @@ export function resetDefaultExercises() {
 
   DEFAULT_EXERCISES.forEach(defaultEx => {
     if (dbFirestore && user) {
-      dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(defaultEx.id).set(defaultEx)
+      _saveExerciseToFirestore(user, defaultEx)
         .catch(err => console.error('Firestore reset default exercise failed:', err));
     } else {
       // Guest: update in cache (or add if missing)
@@ -517,11 +522,21 @@ export function updateWorkout(updatedWorkout) {
   return null;
 }
 
+let cachedPRs = null;
+
+if (isBrowserEnv) {
+  window.addEventListener('db-updated', () => {
+    cachedPRs = null;
+  });
+}
+
 /**
  * Calculate Personal Records dynamically from history
  * Returns a map: { [exerciseId]: { maxWeight: number, max1RM: number } }
  */
 export function getPersonalRecords() {
+  if (cachedPRs) return cachedPRs;
+
   const prs = {};
   const workouts = getWorkouts();
   
@@ -553,5 +568,6 @@ export function getPersonalRecords() {
     });
   });
   
+  cachedPRs = prs;
   return prs;
 }

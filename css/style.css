@@ -1431,3 +1431,28 @@ input[type="number"] {
   margin-top: 6px;
   font-weight: 600;
 }
+
+/* Extracted Utility Classes */
+.view-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; }
+.view-title-no-margin { font-size: 1.25rem; font-weight: 700; }
+.settings-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; }
+
+.d-none { display: none !important; }
+.d-block { display: block !important; }
+.flex-1 { flex: 1; }
+
+.mb-12 { margin-bottom: 12px; }
+.mt-20 { margin-top: 20px; }
+.p-10 { padding: 10px; }
+
+.exercises-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.exercises-actions { display: flex; gap: 8px; }
+.auth-description { color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 20px; }
+.auth-error-msg { color: var(--accent-danger); font-size: 0.85rem; margin-top: -8px; margin-bottom: 12px; display: none; }
+.auth-buttons { display: flex; gap: 10px; }
+.btn-google { width: 100%; gap: 10px; }
+.setting-select { width: auto; padding: 6px 30px 6px 12px; font-size: 0.9rem; }
+.modal-exercises-list-wrapper { max-height: 300px; overflow-y: auto; margin-bottom: 20px; }
+.modal-content-sm { max-width: 320px; }
+.dialog-message { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 20px; line-height: 1.4; }
+.modal-actions-dialog { margin-top: 0; gap: 10px; }
