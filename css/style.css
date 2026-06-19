@@ -39,8 +39,9 @@ body {
   color: var(--text-primary);
   display: flex;
   justify-content: center;
-  min-height: 100vh;
-  overflow-x: hidden;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 /* App Container - Constrained to 480px on desktop to look like a mobile phone mockup */
@@ -51,20 +52,18 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-  min-height: 100vh;
+  height: 100%;
   box-shadow: var(--shadow-premium);
   border-left: 1px solid var(--border-color);
   border-right: 1px solid var(--border-color);
-  padding-bottom: calc(75px + var(--safe-bottom)); /* Leave room for floating bottom nav */
 }
 
 /* Header */
 header {
+  flex-shrink: 0;
   background: linear-gradient(180deg, rgba(21, 29, 48, 0.9) 0%, rgba(11, 15, 25, 0.9) 100%);
   backdrop-filter: blur(10px);
   padding: 18px 20px;
-  position: sticky;
-  top: 0;
   z-index: 100;
   border-bottom: 1px solid var(--border-color);
   display: flex;
@@ -152,7 +151,9 @@ header h1 {
 .view.active {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 75px - 80px); /* Fill screen minus header and nav */
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 @keyframes fadeIn {
@@ -163,7 +164,8 @@ header h1 {
 /* Sticky Action Bar for Mobile */
 .action-bar-sticky {
   position: sticky;
-  bottom: calc(75px + var(--safe-bottom));
+  bottom: -20px; /* Counteract .view padding */
+  margin-top: auto; /* Push to bottom if content is small */
   background: rgba(11, 15, 25, 0.95);
   backdrop-filter: blur(10px);
   margin-left: -20px;
@@ -234,10 +236,7 @@ header h1 {
 
 /* Bottom Navigation */
 .nav-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   height: calc(65px + var(--safe-bottom));
   background-color: rgba(21, 29, 48, 0.95);
   backdrop-filter: blur(15px);
