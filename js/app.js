@@ -265,10 +265,12 @@ export async function finishWorkout() {
   activeWorkout = null;
   localStorage.removeItem('activeWorkout');
 
+  // Always stop the rest timer when finishing, regardless of browser env
+  hideRestTimerOverlay();
+
   if (isBrowserEnv && DOM.workoutTimer) {
     clearInterval(timerInterval);
     DOM.workoutTimer.style.display = 'none';
-    hideRestTimerOverlay();
     switchView('history');
     showToast(isEditing ? 'Training aktualisiert!' : 'Training abgeschlossen!', 'success');
     
