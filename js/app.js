@@ -720,11 +720,21 @@ function setupEventListeners() {
     
     if (deleteBtn) {
       const exId = deleteBtn.dataset.exId;
+      
+      const isUsedInHistory = getWorkouts().some(w => w.exercises && w.exercises.some(ex => ex.id === exId));
+      
       const dialogModal = document.getElementById('custom-dialog-modal');
       let proceed = false;
-      const msg = 'Möchtest du diese eigene Übung wirklich dauerhaft löschen?';
+      let msg = 'Möchtest du diese eigene Übung wirklich dauerhaft löschen?';
+      let title = 'Übung löschen';
+      
+      if (isUsedInHistory) {
+        msg = 'Achtung: Diese Übung wird in deinen vergangenen Trainings verwendet! Wenn du sie löschst, verschwindet sie aus der Bibliothek, bleibt im Verlauf aber erhalten. Trotzdem löschen?';
+        title = 'Warnung: Übung in Verwendung';
+      }
+      
       if (dialogModal) {
-        proceed = await showCustomConfirm('Übung löschen', msg);
+        proceed = await showCustomConfirm(title, msg);
       } else {
         proceed = confirm(msg);
       }

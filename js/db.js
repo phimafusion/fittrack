@@ -338,6 +338,34 @@ export function updateExercise(id, name, category) {
     window.dispatchEvent(new CustomEvent('db-updated'));
   }
 
+  // Propagate edit to history (all past workouts)
+  let historyUpdated = false;
+  const workouts = getWorkouts();
+  workouts.forEach(w => {
+    let workoutChanged = false;
+    if (w.exercises) {
+      w.exercises.forEach(ex => {
+        if (ex.id === id) {
+          ex.name = name;
+          ex.category = category;
+          workoutChanged = true;
+        }
+      });
+    }
+    if (workoutChanged) {
+      historyUpdated = true;
+      if (dbFirestore && user) {
+        dbFirestore.collection('users').doc(user.uid).collection('workouts').doc(w.id).set(w)
+          .catch(err => console.error('Firestore history propagation failed:', err));
+      }
+    }
+  });
+  
+  if (historyUpdated) {
+    localStorage.setItem('workouts', JSON.stringify(workouts));
+    window.dispatchEvent(new CustomEvent('db-updated'));
+  }
+
   return updatedEx;
 }
 
