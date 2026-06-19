@@ -31,7 +31,7 @@ async function initFirebase() {
 }
 
 // Kick off async init; the rest of the module remains synchronous-compatible
-const firebaseReady = initFirebase();
+export const firebaseReady = initFirebase();
 
 export const logout = () => {
   if (auth) return auth.signOut();

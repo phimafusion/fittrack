@@ -3,7 +3,7 @@
  * Database and storage persistence layer using LocalStorage and Firebase Firestore.
  */
 
-import { getCurrentUser } from './auth.js';
+import { getCurrentUser, firebaseReady } from './auth.js';
 
 // Default exercise database (German localization)
 const DEFAULT_EXERCISES = [
@@ -32,20 +32,26 @@ const DEFAULT_EXERCISES = [
 let dbFirestore = null;
 const isBrowserEnv = typeof window !== 'undefined' && typeof document !== 'undefined';
 
-if (isBrowserEnv && typeof firebase !== 'undefined') {
-  try {
-    dbFirestore = firebase.firestore();
-    // Enable offline cache persistence
-    dbFirestore.enablePersistence({ synchronizeTabs: true }).catch(err => {
-      if (err.code === 'failed-precondition') {
-        console.warn('Firestore Offline-Cache: Mehrere Tabs offen, Cache deaktiviert.');
-      } else if (err.code === 'unimplemented') {
-        console.warn('Firestore Offline-Cache: Browser unterstützt IndexedDB nicht.');
+// Asynchronously initialize Firestore once Firebase ready promise resolves
+if (isBrowserEnv) {
+  firebaseReady.then(() => {
+    if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+      try {
+        dbFirestore = firebase.firestore();
+        // Enable offline cache persistence
+        dbFirestore.enablePersistence({ synchronizeTabs: true }).catch(err => {
+          if (err.code === 'failed-precondition') {
+            console.warn('Firestore Offline-Cache: Mehrere Tabs offen, Cache deaktiviert.');
+          } else if (err.code === 'unimplemented') {
+            console.warn('Firestore Offline-Cache: Browser unterstützt IndexedDB nicht.');
+          }
+        });
+        console.log('[DB] Firestore initialized successfully.');
+      } catch (e) {
+        console.error('Firestore initialization failed:', e);
       }
-    });
-  } catch (e) {
-    console.error('Firestore initialization failed:', e);
-  }
+    }
+  });
 }
 
 // Memory cache initialized from local storage for instant offline loading
@@ -202,48 +208,52 @@ export function syncDatabaseWithFirebase(user) {
     workoutsUnsubscribe = null;
   }
 
-  if (!dbFirestore || !user) {
-    // Logged out / guest mode: fall back to LocalStorage
-    initDB();
-    window.dispatchEvent(new CustomEvent('db-updated'));
-    return;
-  }
-
-  // 1. Sync Exercises
-  exercisesUnsubscribe = dbFirestore.collection('users').doc(user.uid).collection('exercises')
-    .onSnapshot(snapshot => {
-      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      if (list.length === 0) {
-        // First time initialization in the cloud: upload German defaults
-        DEFAULT_EXERCISES.forEach(ex => {
-          dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(ex.id).set(ex);
-        });
-        cachedExercises = [...DEFAULT_EXERCISES];
-      } else {
-        cachedExercises = list;
-      }
-      localStorage.setItem('exercises', JSON.stringify(cachedExercises));
+  // Wait for Firebase to finish initializing before setting up collection listeners
+  firebaseReady.then(() => {
+    if (!dbFirestore || !user) {
+      // Logged out / guest mode: fall back to LocalStorage
+      initDB();
       window.dispatchEvent(new CustomEvent('db-updated'));
-    }, err => {
-      console.error('Firestore exercises sync error:', err);
-    });
+      return;
+    }
 
-  // 2. Sync Workouts
-  workoutsUnsubscribe = dbFirestore.collection('users').doc(user.uid).collection('workouts')
-    .orderBy('date', 'desc')
-    .onSnapshot(snapshot => {
-      cachedWorkouts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      localStorage.setItem('workouts', JSON.stringify(cachedWorkouts));
-      window.dispatchEvent(new CustomEvent('db-updated'));
-    }, err => {
-      console.error('Firestore workouts sync error:', err);
-    });
+    // 1. Sync Exercises
+    exercisesUnsubscribe = dbFirestore.collection('users').doc(user.uid).collection('exercises')
+      .onSnapshot(snapshot => {
+        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (list.length === 0) {
+          // First time initialization in the cloud: upload German defaults
+          DEFAULT_EXERCISES.forEach(ex => {
+            dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(ex.id).set(ex);
+          });
+          cachedExercises = [...DEFAULT_EXERCISES];
+        } else {
+          cachedExercises = list;
+        }
+        localStorage.setItem('exercises', JSON.stringify(cachedExercises));
+        window.dispatchEvent(new CustomEvent('db-updated'));
+      }, err => {
+        console.error('Firestore exercises sync error:', err);
+      });
+
+    // 2. Sync Workouts
+    workoutsUnsubscribe = dbFirestore.collection('users').doc(user.uid).collection('workouts')
+      .orderBy('date', 'desc')
+      .onSnapshot(snapshot => {
+        cachedWorkouts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        localStorage.setItem('workouts', JSON.stringify(cachedWorkouts));
+        window.dispatchEvent(new CustomEvent('db-updated'));
+      }, err => {
+        console.error('Firestore workouts sync error:', err);
+      });
+  });
 }
 
 /**
  * Merge local guest workouts and custom exercises to cloud profile on sign-in
  */
 export async function mergeLocalDataToCloud(uid) {
+  await firebaseReady;
   if (!dbFirestore || !uid) return;
 
   try {
