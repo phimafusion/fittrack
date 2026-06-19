@@ -234,16 +234,23 @@ export async function finishWorkout() {
     const oldPR = oldPRs[ex.id];
     let beatWeight = false;
     let beat1RM = false;
+    let isFirstTime = false;
 
     if (!oldPR) {
-      if (maxWeightThisWorkout > 0) beatWeight = true;
+      if (maxWeightThisWorkout > 0) isFirstTime = true;
     } else {
       if (maxWeightThisWorkout > oldPR.maxWeight) beatWeight = true;
       if (max1RMThisWorkout > oldPR.max1RM) beat1RM = true;
     }
 
-    if (beatWeight || beat1RM) {
-      newPrMessages.push(`Neuer PR bei ${ex.name}! 🏆`);
+    if (isFirstTime) {
+      newPrMessages.push(`Erster PR bei ${ex.name}! 🏆`);
+    } else if (beatWeight && beat1RM) {
+      newPrMessages.push(`Doppelter PR bei ${ex.name}! (Max & 1RM) 🏆`);
+    } else if (beatWeight) {
+      newPrMessages.push(`Neuer Gewichts-PR bei ${ex.name}! (${maxWeightThisWorkout} kg) 🏆`);
+    } else if (beat1RM) {
+      newPrMessages.push(`Neuer 1RM-PR bei ${ex.name}! (${max1RMThisWorkout} kg) 🏆`);
     }
   });
 
