@@ -292,26 +292,58 @@ export function getExercises() {
 }
 
 /**
- * Add a new custom exercise
+ * Add a new custom exercise.
+ * If the same name already exists in workout history, the historical ID is reused
+ * so that Personal Records are automatically reconnected.
  */
 export function addExercise(name, category) {
   if (!name || !category) return null;
-  
-  const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now();
-  const newEx = { id, name, category };
+
+  // Check if this name already exists in workout history (case-insensitive)
+  // If so, reuse the same ID so PRs are preserved
+  let id = null;
+  const nameLower = name.trim().toLowerCase();
+  for (const w of cachedWorkouts) {
+    if (!w.exercises) continue;
+    for (const ex of w.exercises) {
+      if ((ex.name || '').trim().toLowerCase() === nameLower) {
+        id = ex.id;
+        break;
+      }
+    }
+    if (id) break;
+  }
+
+  // Also check DEFAULT_EXERCISES by name in case user recreates a default by name
+  if (!id) {
+    const defaultMatch = DEFAULT_EXERCISES.find(ex => ex.name.trim().toLowerCase() === nameLower);
+    if (defaultMatch) id = defaultMatch.id;
+  }
+
+  // Fallback: generate a fresh ID
+  if (!id) {
+    id = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now();
+  }
+
+  const newEx = { id, name: name.trim(), category };
 
   const user = getCurrentUser();
   if (dbFirestore && user) {
     dbFirestore.collection('users').doc(user.uid).collection('exercises').doc(id).set(newEx)
       .catch(err => console.error('Firestore save custom exercise failed:', err));
   } else {
-    // Guest fallback
-    cachedExercises.push(newEx);
+    // Guest fallback: update if exists, otherwise push
+    const existing = cachedExercises.findIndex(ex => ex.id === id);
+    if (existing !== -1) {
+      cachedExercises[existing] = newEx;
+    } else {
+      cachedExercises.push(newEx);
+    }
     localStorage.setItem('exercises', JSON.stringify(cachedExercises));
     window.dispatchEvent(new CustomEvent('db-updated'));
   }
 
-  return newEx;
+  return { newEx, wasReconnected: !!id && cachedWorkouts.some(w => w.exercises && w.exercises.some(ex => ex.id === newEx.id)) };
 }
 
 /**

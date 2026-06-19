@@ -593,8 +593,12 @@ function setupEventListeners() {
           showToast('Übung aktualisiert.', 'success');
         }
       } else {
-        addExercise(name, category);
-        showToast('Neue Übung erstellt.', 'success');
+        const res = addExercise(name, category);
+        if (res && res.wasReconnected) {
+          showToast('Übung wiederhergestellt – PRs aus dem Verlauf wurden automatisch verknüpft! 🏆', 'success');
+        } else {
+          showToast('Neue Übung erstellt.', 'success');
+        }
       }
       closeModal(DOM.modalCreateExercise);
       renderExercisesLibrary();
