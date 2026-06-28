@@ -14,7 +14,8 @@ import {
   saveWorkout,
   deleteWorkout,
   updateWorkout,
-  getPersonalRecords
+  getPersonalRecords,
+  isTimeBasedExercise
 } from '../js/db.js';
 
 import {
@@ -513,6 +514,15 @@ QUnit.module('FitTrack Test Suite', hooks => {
       assert.equal(runPR.maxTime, 90, 'Max time is 90s');
       assert.equal(runPR.maxWeight, 10, 'Max weight is 10kg');
       assert.notOk(runPR.max1RM, 'No max1RM calculated for time-based exercise');
+    });
+
+    QUnit.test('isTimeBasedExercise helper validation', assert => {
+      assert.notOk(isTimeBasedExercise(null), 'null is not time-based');
+      assert.notOk(isTimeBasedExercise(undefined), 'undefined is not time-based');
+      assert.notOk(isTimeBasedExercise({ id: 'bench_press', measurementType: 'reps' }), 'reps exercise is not time-based');
+      assert.ok(isTimeBasedExercise({ id: 'plank' }), 'plank ID is implicitly time-based');
+      assert.ok(isTimeBasedExercise({ id: 'farmer_walk' }), 'farmer_walk ID is implicitly time-based');
+      assert.ok(isTimeBasedExercise({ id: 'any', measurementType: 'time' }), 'measurementType time is time-based');
     });
 
   });
