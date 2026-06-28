@@ -1437,8 +1437,8 @@ input[type="number"] {
 .view-title-no-margin { font-size: 1.25rem; font-weight: 700; }
 .settings-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; }
 
-.d-none { display: none !important; }
-.d-block { display: block !important; }
+.d-none { display: none; }
+.d-block { display: block; }
 .flex-1 { flex: 1; }
 
 .mb-12 { margin-bottom: 12px; }
