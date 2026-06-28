@@ -17,7 +17,8 @@ import {
   initDB,
   syncDatabaseWithFirebase,
   mergeLocalDataToCloud,
-  getPersonalRecords
+  getPersonalRecords,
+  isTimeBasedExercise
 } from './db.js';
 
 import {
@@ -226,7 +227,7 @@ export async function finishWorkout() {
   let newPrMessages = [];
 
   loggedExercises.forEach(ex => {
-    const isTimeBased = ex.measurementType === 'time';
+    const isTimeBased = isTimeBasedExercise(ex);
     const oldPR = oldPRs[ex.id];
     let isFirstTime = false;
 

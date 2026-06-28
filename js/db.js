@@ -544,6 +544,19 @@ export function updateWorkout(updatedWorkout) {
   return null;
 }
 
+/**
+ * Checks if an exercise is time-based (e.g. Plank, Farmer's Walk).
+ * Safely handles fallback checks for older logs or library resets.
+ */
+export function isTimeBasedExercise(ex) {
+  if (!ex) return false;
+  return ex.measurementType === 'time' || 
+         ex.id === 'plank' || 
+         ex.id === 'farmer_walk' ||
+         (cachedExercises.find(e => e.id === ex.id)?.measurementType === 'time') ||
+         false;
+}
+
 let cachedPRs = null;
 
 if (isBrowserEnv) {
@@ -574,10 +587,7 @@ export function getPersonalRecords() {
           const wgt = parseFloat(set.weight) || 0;
           const repsOrTime = parseInt(set.reps) || 0;
           
-          const isTimeBased = ex.measurementType === 'time' || 
-                              ex.id === 'plank' || 
-                              ex.id === 'farmer_walk' ||
-                              (cachedExercises.find(e => e.id === ex.id)?.measurementType === 'time');
+          const isTimeBased = isTimeBasedExercise(ex);
           
           if (isTimeBased) {
             if (repsOrTime > 0 || wgt > 0) {
