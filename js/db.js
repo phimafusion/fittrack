@@ -7,25 +7,26 @@ import { getCurrentUser, firebaseReady } from './auth.js';
 
 // Default exercise database (German localization)
 const DEFAULT_EXERCISES = [
-  { id: 'bench_press', name: 'Bankdrücken', category: 'Brust' },
-  { id: 'incline_dumbbells', name: 'Schrägbankdrücken Kurzhantel', category: 'Brust' },
-  { id: 'chest_fly', name: 'Fliegende Bewegung (Brust)', category: 'Brust' },
-  { id: 'squats', name: 'Kniebeugen', category: 'Beine' },
-  { id: 'leg_press', name: 'Beinpresse', category: 'Beine' },
-  { id: 'leg_extension', name: 'Beinstrecker', category: 'Beine' },
-  { id: 'leg_curl', name: 'Beinbeuger', category: 'Beine' },
-  { id: 'deadlift', name: 'Kreuzheben', category: 'Rücken' },
-  { id: 'pullups', name: 'Klimmzüge', category: 'Rücken' },
-  { id: 'lat_pulldown', name: 'Latzug', category: 'Rücken' },
-  { id: 'barbell_row', name: 'Langhantelrudern', category: 'Rücken' },
-  { id: 'overhead_press', name: 'Überkopfdrücken (OHP)', category: 'Schultern' },
-  { id: 'lateral_raise', name: 'Seitheben', category: 'Schultern' },
-  { id: 'bicep_curl', name: 'Bizeps-Curl Kurzhantel', category: 'Arme' },
-  { id: 'hammer_curl', name: 'Hammer-Curls', category: 'Arme' },
-  { id: 'tricep_pushdown', name: 'Trizeps-Pushdown Seil', category: 'Arme' },
-  { id: 'skull_crusher', name: 'Skull Crusher', category: 'Arme' },
-  { id: 'plank', name: 'Plank (Unterarmstütz)', category: 'Bauch' },
-  { id: 'crunches', name: 'Crunches', category: 'Bauch' }
+  { id: 'bench_press', name: 'Bankdrücken', category: 'Brust', measurementType: 'reps' },
+  { id: 'incline_dumbbells', name: 'Schrägbankdrücken Kurzhantel', category: 'Brust', measurementType: 'reps' },
+  { id: 'chest_fly', name: 'Fliegende Bewegung (Brust)', category: 'Brust', measurementType: 'reps' },
+  { id: 'squats', name: 'Kniebeugen', category: 'Beine', measurementType: 'reps' },
+  { id: 'leg_press', name: 'Beinpresse', category: 'Beine', measurementType: 'reps' },
+  { id: 'leg_extension', name: 'Beinstrecker', category: 'Beine', measurementType: 'reps' },
+  { id: 'leg_curl', name: 'Beinbeuger', category: 'Beine', measurementType: 'reps' },
+  { id: 'deadlift', name: 'Kreuzheben', category: 'Rücken', measurementType: 'reps' },
+  { id: 'pullups', name: 'Klimmzüge', category: 'Rücken', measurementType: 'reps' },
+  { id: 'lat_pulldown', name: 'Latzug', category: 'Rücken', measurementType: 'reps' },
+  { id: 'barbell_row', name: 'Langhantelrudern', category: 'Rücken', measurementType: 'reps' },
+  { id: 'overhead_press', name: 'Überkopfdrücken (OHP)', category: 'Schultern', measurementType: 'reps' },
+  { id: 'lateral_raise', name: 'Seitheben', category: 'Schultern', measurementType: 'reps' },
+  { id: 'bicep_curl', name: 'Bizeps-Curl Kurzhantel', category: 'Arme', measurementType: 'reps' },
+  { id: 'hammer_curl', name: 'Hammer-Curls', category: 'Arme', measurementType: 'reps' },
+  { id: 'tricep_pushdown', name: 'Trizeps-Pushdown Seil', category: 'Arme', measurementType: 'reps' },
+  { id: 'skull_crusher', name: 'Skull Crusher', category: 'Arme', measurementType: 'reps' },
+  { id: 'plank', name: 'Plank (Unterarmstütz)', category: 'Bauch', measurementType: 'time' },
+  { id: 'crunches', name: 'Crunches', category: 'Bauch', measurementType: 'reps' },
+  { id: 'farmer_walk', name: 'Farmer\'s Walk', category: 'Beine', measurementType: 'time' }
 ];
 
 // Firebase Firestore instance
@@ -192,7 +193,27 @@ export function initDB() {
   }
 
   // Load from local storage into memory cache initially
-  cachedExercises = JSON.parse(localStorage.getItem('exercises')) || [...DEFAULT_EXERCISES];
+  cachedExercises = JSON.parse(localStorage.getItem('exercises')) || [];
+  
+  // Ensure all default exercises exist and have the correct measurementType
+  let cacheUpdated = false;
+  DEFAULT_EXERCISES.forEach(defEx => {
+    const existing = cachedExercises.find(ex => ex.id === defEx.id);
+    if (!existing) {
+      cachedExercises.push({ ...defEx });
+      cacheUpdated = true;
+    } else {
+      if (!existing.measurementType || (existing.id === 'plank' && existing.measurementType !== 'time')) {
+        existing.measurementType = defEx.measurementType;
+        cacheUpdated = true;
+      }
+    }
+  });
+
+  if (cacheUpdated) {
+    localStorage.setItem('exercises', JSON.stringify(cachedExercises));
+  }
+
   cachedWorkouts = JSON.parse(localStorage.getItem('workouts')) || [];
 }
 
@@ -301,7 +322,7 @@ export function getExercises() {
  * If the same name already exists in workout history, the historical ID is reused
  * so that Personal Records are automatically reconnected.
  */
-export function addExercise(name, category) {
+export function addExercise(name, category, measurementType = 'reps') {
   if (!name || !category) return null;
 
   // Check if this name already exists in workout history (case-insensitive)
@@ -330,7 +351,7 @@ export function addExercise(name, category) {
     id = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now();
   }
 
-  const newEx = { id, name: name.trim(), category };
+  const newEx = { id, name: name.trim(), category, measurementType };
 
   const user = getCurrentUser();
   if (dbFirestore && user) {
@@ -354,10 +375,10 @@ export function addExercise(name, category) {
 /**
  * Update an existing exercise
  */
-export function updateExercise(id, name, category) {
+export function updateExercise(id, name, category, measurementType = 'reps') {
   if (!id || !name || !category) return null;
   
-  const updatedEx = { id, name, category };
+  const updatedEx = { id, name, category, measurementType };
 
   const user = getCurrentUser();
   if (dbFirestore && user) {
@@ -385,6 +406,7 @@ export function updateExercise(id, name, category) {
         if (ex.id === id) {
           ex.name = name;
           ex.category = category;
+          ex.measurementType = measurementType;
           workoutChanged = true;
         }
       });
@@ -548,19 +570,35 @@ export function getPersonalRecords() {
       
       ex.sets.forEach(set => {
         // Only consider sets that were either explicitly completed or have actual values
-        if (set.completed || (set.weight > 0 && set.reps > 0)) {
+        if (set.completed || (set.weight > 0 || set.reps > 0)) {
           const wgt = parseFloat(set.weight) || 0;
-          const reps = parseInt(set.reps) || 0;
+          const repsOrTime = parseInt(set.reps) || 0;
           
-          if (wgt > 0 && reps > 0) {
-            // Epley Formula for 1RM: Weight * (1 + Reps/30)
-            const calculated1RM = Math.round((wgt * (1 + reps / 30)) * 10) / 10; // Round to 1 decimal
-            
-            if (!prs[ex.id]) {
-              prs[ex.id] = { maxWeight: wgt, max1RM: calculated1RM };
-            } else {
-              if (wgt > prs[ex.id].maxWeight) prs[ex.id].maxWeight = wgt;
-              if (calculated1RM > prs[ex.id].max1RM) prs[ex.id].max1RM = calculated1RM;
+          const isTimeBased = ex.measurementType === 'time' || 
+                              ex.id === 'plank' || 
+                              ex.id === 'farmer_walk' ||
+                              (cachedExercises.find(e => e.id === ex.id)?.measurementType === 'time');
+          
+          if (isTimeBased) {
+            if (repsOrTime > 0 || wgt > 0) {
+              if (!prs[ex.id]) {
+                prs[ex.id] = { maxWeight: wgt, maxTime: repsOrTime };
+              } else {
+                if (wgt > (prs[ex.id].maxWeight || 0)) prs[ex.id].maxWeight = wgt;
+                if (repsOrTime > (prs[ex.id].maxTime || 0)) prs[ex.id].maxTime = repsOrTime;
+              }
+            }
+          } else {
+            if (wgt > 0 && repsOrTime > 0) {
+              // Epley Formula for 1RM: Weight * (1 + Reps/30)
+              const calculated1RM = Math.round((wgt * (1 + repsOrTime / 30)) * 10) / 10; // Round to 1 decimal
+              
+              if (!prs[ex.id]) {
+                prs[ex.id] = { maxWeight: wgt, max1RM: calculated1RM };
+              } else {
+                if (wgt > prs[ex.id].maxWeight) prs[ex.id].maxWeight = wgt;
+                if (calculated1RM > (prs[ex.id].max1RM || 0)) prs[ex.id].max1RM = calculated1RM;
+              }
             }
           }
         }

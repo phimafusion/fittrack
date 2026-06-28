@@ -44,6 +44,7 @@ export function cacheDOM() {
   DOM.formCreateExercise = document.getElementById('form-create-exercise');
   DOM.customExerciseName = document.getElementById('custom-exercise-name');
   DOM.customExerciseCategory = document.getElementById('custom-exercise-category');
+  DOM.customExerciseMeasurement = document.getElementById('custom-exercise-measurement');
 
   // Profile DOM
   DOM.profileLoggedIn = document.getElementById('profile-logged-in');
@@ -121,7 +122,16 @@ export function uiRenderActiveWorkout(
 
   activeWorkout.exercises.forEach((ex, exIdx) => {
     const pr = personalRecords ? personalRecords[ex.id] : null;
-    const prText = pr ? `<span class="active-pr-text" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin-left: 8px;">(PR: ${pr.maxWeight}kg | 1RM: ${pr.max1RM}kg)</span>` : '';
+    let prText = '';
+    if (pr) {
+      if (ex.measurementType === 'time') {
+        prText = pr.maxWeight > 0 
+          ? `<span class="active-pr-text" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin-left: 8px;">(PR: ${pr.maxWeight}kg | Bestzeit: ${pr.maxTime}s)</span>`
+          : `<span class="active-pr-text" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin-left: 8px;">(PR Bestzeit: ${pr.maxTime}s)</span>`;
+      } else {
+        prText = `<span class="active-pr-text" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin-left: 8px;">(PR: ${pr.maxWeight}kg | 1RM: ${pr.max1RM}kg)</span>`;
+      }
+    }
 
     const card = document.createElement('div');
     card.className = 'exercise-card';
@@ -143,7 +153,7 @@ export function uiRenderActiveWorkout(
         <div class="sets-header">
           <span>Satz</span>
           <span>Gewicht (kg)</span>
-          <span>Wdh.</span>
+          <span>${ex.measurementType === 'time' ? 'Zeit (s)' : 'Wdh.'}</span>
           <span>Status</span>
         </div>
         <div class="sets-list-container">
@@ -161,7 +171,7 @@ export function uiRenderActiveWorkout(
               <!-- Reps Input Counter -->
               <div class="input-group">
                 <button class="input-btn btn-reps-minus" data-ex-idx="${exIdx}" data-set-idx="${setIdx}">-</button>
-                <input type="number" class="set-input val-reps" data-ex-idx="${exIdx}" data-set-idx="${setIdx}" value="${set.reps}" aria-label="Wiederholungen">
+                <input type="number" class="set-input val-reps" data-ex-idx="${exIdx}" data-set-idx="${setIdx}" value="${set.reps}" aria-label="${ex.measurementType === 'time' ? 'Zeit in Sekunden' : 'Wiederholungen'}">
                 <button class="input-btn btn-reps-plus" data-ex-idx="${exIdx}" data-set-idx="${setIdx}">+</button>
               </div>
 
@@ -254,7 +264,10 @@ export function uiRenderHistory(workouts, listContainerEl, emptyStateEl) {
 
       <div class="history-exercises-summary">
         ${w.exercises.map(ex => {
-          const setsSummary = ex.sets.map(s => `${s.weight}kg x ${s.reps}`).join(', ');
+          const setsSummary = ex.sets.map(s => {
+            const unit = ex.measurementType === 'time' ? 's' : '';
+            return `${s.weight}kg x ${s.reps}${unit}`;
+          }).join(', ');
           return `
             <div class="history-ex-row">
               <span class="history-ex-name">${ex.name}</span>
@@ -301,12 +314,20 @@ export function uiRenderExercisesLibrary(
     item.className = 'exercise-item';
     
     const pr = personalRecords ? personalRecords[ex.id] : null;
+    let prBadgeHtml = '';
+    if (pr) {
+      if (ex.measurementType === 'time') {
+        prBadgeHtml = `<div class="exercise-pr-badge"><i class="fa-solid fa-trophy"></i> ${pr.maxWeight > 0 ? `Max: ${pr.maxWeight} kg | ` : ''}Bestzeit: ${pr.maxTime}s</div>`;
+      } else {
+        prBadgeHtml = `<div class="exercise-pr-badge"><i class="fa-solid fa-trophy"></i> Max: ${pr.maxWeight} kg | 1RM: ${pr.max1RM} kg</div>`;
+      }
+    }
 
     item.innerHTML = `
       <div class="exercise-item-info">
         <span class="exercise-item-name">${ex.name}</span>
         <span class="exercise-item-category">${ex.category}</span>
-        ${pr ? `<div class="exercise-pr-badge"><i class="fa-solid fa-trophy"></i> Max: ${pr.maxWeight} kg | 1RM: ${pr.max1RM} kg</div>` : ''}
+        ${prBadgeHtml}
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
         ${activeWorkout ? `
@@ -315,7 +336,7 @@ export function uiRenderExercisesLibrary(
           </button>
         ` : ''}
         ${!forSelectionModal ? `
-          <button class="btn-edit-exercise" data-ex-id="${ex.id}" data-ex-name="${ex.name}" data-ex-category="${ex.category}" title="Übung bearbeiten" style="background: none; border: none; color: var(--accent-secondary); font-size: 1.1rem; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 32px; width: 32px; border-radius: 50%;">
+          <button class="btn-edit-exercise" data-ex-id="${ex.id}" data-ex-name="${ex.name}" data-ex-category="${ex.category}" data-ex-measurement="${ex.measurementType || 'reps'}" title="Übung bearbeiten" style="background: none; border: none; color: var(--accent-secondary); font-size: 1.1rem; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 32px; width: 32px; border-radius: 50%;">
             <i class="fa-solid fa-pen-to-square"></i>
           </button>
         ` : ''}

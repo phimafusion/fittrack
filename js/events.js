@@ -150,6 +150,9 @@ function setupEventListeners() {
     document.getElementById('btn-submit-create-exercise').textContent = 'Übung erstellen';
     delete DOM.formCreateExercise.dataset.editId;
     DOM.customExerciseName.value = '';
+    if (DOM.customExerciseMeasurement) {
+      DOM.customExerciseMeasurement.value = 'reps';
+    }
     openModal(DOM.modalCreateExercise);
   });
   
@@ -160,18 +163,19 @@ function setupEventListeners() {
     e.preventDefault();
     const name = DOM.customExerciseName.value.trim();
     const category = DOM.customExerciseCategory.value;
+    const measurementType = DOM.customExerciseMeasurement ? DOM.customExerciseMeasurement.value : 'reps';
     const editId = DOM.formCreateExercise.dataset.editId;
     
     if (name) {
       if (editId) {
-        const res = updateExercise(editId, name, category);
+        const res = updateExercise(editId, name, category, measurementType);
         if (res && res.historyUpdatedCount > 0) {
           showToast(`Übung aktualisiert (auch in ${res.historyUpdatedCount} alten Trainings).`, 'success');
         } else {
           showToast('Übung aktualisiert.', 'success');
         }
       } else {
-        const res = addExercise(name, category);
+        const res = addExercise(name, category, measurementType);
         if (res && res.wasReconnected) {
           showToast('Übung wiederhergestellt – PRs aus dem Verlauf wurden automatisch verknüpft! 🏆', 'success');
         } else {
@@ -227,17 +231,21 @@ function setupEventListeners() {
     else if (btnRepsMinus) {
       const exIdx = parseInt(btnRepsMinus.dataset.exIdx);
       const setIdx = parseInt(btnRepsMinus.dataset.setIdx);
-      const set = activeWorkout.exercises[exIdx].sets[setIdx];
-      set.reps = Math.max(0, set.reps - 1);
+      const ex = activeWorkout.exercises[exIdx];
+      const set = ex.sets[setIdx];
+      const step = ex.measurementType === 'time' ? 5 : 1;
+      set.reps = Math.max(0, set.reps - step);
       saveActiveWorkoutState();
       renderActiveWorkout();
     }
-
+    
     else if (btnRepsPlus) {
       const exIdx = parseInt(btnRepsPlus.dataset.exIdx);
       const setIdx = parseInt(btnRepsPlus.dataset.setIdx);
-      const set = activeWorkout.exercises[exIdx].sets[setIdx];
-      set.reps = set.reps + 1;
+      const ex = activeWorkout.exercises[exIdx];
+      const set = ex.sets[setIdx];
+      const step = ex.measurementType === 'time' ? 5 : 1;
+      set.reps = (set.reps || 0) + step;
       saveActiveWorkoutState();
       renderActiveWorkout();
     }
@@ -316,12 +324,16 @@ function setupEventListeners() {
       const exId = editBtn.dataset.exId;
       const exName = editBtn.dataset.exName;
       const exCat = editBtn.dataset.exCategory;
+      const exMeasurement = editBtn.dataset.exMeasurement || 'reps';
       
       document.getElementById('modal-create-exercise-title').textContent = 'Übung bearbeiten';
       document.getElementById('btn-submit-create-exercise').textContent = 'Speichern';
       DOM.formCreateExercise.dataset.editId = exId;
       DOM.customExerciseName.value = exName;
       DOM.customExerciseCategory.value = exCat;
+      if (DOM.customExerciseMeasurement) {
+        DOM.customExerciseMeasurement.value = exMeasurement;
+      }
       openModal(DOM.modalCreateExercise);
     }
     

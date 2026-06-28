@@ -154,6 +154,7 @@ export async function cancelWorkout() {
     cancelWorkoutState();
     if (isBrowserEnv && DOM.workoutTimer) {
       clearInterval(timerInterval);
+      timerInterval = null;
       DOM.workoutTimer.style.display = 'none';
       hideRestTimerOverlay();
       if (isEditing) {
@@ -225,40 +226,76 @@ export async function finishWorkout() {
   let newPrMessages = [];
 
   loggedExercises.forEach(ex => {
-    let maxWeightThisWorkout = 0;
-    let max1RMThisWorkout = 0;
-    
-    ex.sets.forEach(set => {
-      if (set.completed || (set.weight > 0 && set.reps > 0)) {
-        const wgt = parseFloat(set.weight) || 0;
-        const reps = parseInt(set.reps) || 0;
-        if (wgt > maxWeightThisWorkout) maxWeightThisWorkout = wgt;
-        
-        const calculated1RM = Math.round((wgt * (1 + reps / 30)) * 10) / 10;
-        if (calculated1RM > max1RMThisWorkout) max1RMThisWorkout = calculated1RM;
-      }
-    });
-
+    const isTimeBased = ex.measurementType === 'time';
     const oldPR = oldPRs[ex.id];
-    let beatWeight = false;
-    let beat1RM = false;
     let isFirstTime = false;
 
-    if (!oldPR) {
-      if (maxWeightThisWorkout > 0) isFirstTime = true;
-    } else {
-      if (maxWeightThisWorkout > oldPR.maxWeight) beatWeight = true;
-      if (max1RMThisWorkout > oldPR.max1RM) beat1RM = true;
-    }
+    if (isTimeBased) {
+      let maxWeightThisWorkout = 0;
+      let maxTimeThisWorkout = 0;
+      
+      ex.sets.forEach(set => {
+        if (set.completed || (set.weight > 0 || set.reps > 0)) {
+          const wgt = parseFloat(set.weight) || 0;
+          const timeVal = parseInt(set.reps) || 0;
+          if (wgt > maxWeightThisWorkout) maxWeightThisWorkout = wgt;
+          if (timeVal > maxTimeThisWorkout) maxTimeThisWorkout = timeVal;
+        }
+      });
 
-    if (isFirstTime) {
-      newPrMessages.push(`Erster PR bei ${ex.name}! 🏆`);
-    } else if (beatWeight && beat1RM) {
-      newPrMessages.push(`Doppelter PR bei ${ex.name}! (Max & 1RM) 🏆`);
-    } else if (beatWeight) {
-      newPrMessages.push(`Neuer Gewichts-PR bei ${ex.name}! (${maxWeightThisWorkout} kg) 🏆`);
-    } else if (beat1RM) {
-      newPrMessages.push(`Neuer 1RM-PR bei ${ex.name}! (${max1RMThisWorkout} kg) 🏆`);
+      let beatWeight = false;
+      let beatTime = false;
+
+      if (!oldPR) {
+        if (maxTimeThisWorkout > 0 || maxWeightThisWorkout > 0) isFirstTime = true;
+      } else {
+        if (maxWeightThisWorkout > (oldPR.maxWeight || 0)) beatWeight = true;
+        if (maxTimeThisWorkout > (oldPR.maxTime || 0)) beatTime = true;
+      }
+
+      if (isFirstTime) {
+        newPrMessages.push(`Erster PR bei ${ex.name}! 🏆`);
+      } else if (beatWeight && beatTime) {
+        newPrMessages.push(`Doppelter PR bei ${ex.name}! (Gewicht & Zeit) 🏆`);
+      } else if (beatWeight) {
+        newPrMessages.push(`Neuer Gewichts-PR bei ${ex.name}! (${maxWeightThisWorkout} kg) 🏆`);
+      } else if (beatTime) {
+        newPrMessages.push(`Neuer Zeit-PR bei ${ex.name}! (${maxTimeThisWorkout}s) 🏆`);
+      }
+    } else {
+      let maxWeightThisWorkout = 0;
+      let max1RMThisWorkout = 0;
+      
+      ex.sets.forEach(set => {
+        if (set.completed || (set.weight > 0 && set.reps > 0)) {
+          const wgt = parseFloat(set.weight) || 0;
+          const reps = parseInt(set.reps) || 0;
+          if (wgt > maxWeightThisWorkout) maxWeightThisWorkout = wgt;
+          
+          const calculated1RM = Math.round((wgt * (1 + reps / 30)) * 10) / 10;
+          if (calculated1RM > max1RMThisWorkout) max1RMThisWorkout = calculated1RM;
+        }
+      });
+
+      let beatWeight = false;
+      let beat1RM = false;
+
+      if (!oldPR) {
+        if (maxWeightThisWorkout > 0) isFirstTime = true;
+      } else {
+        if (maxWeightThisWorkout > oldPR.maxWeight) beatWeight = true;
+        if (max1RMThisWorkout > oldPR.max1RM) beat1RM = true;
+      }
+
+      if (isFirstTime) {
+        newPrMessages.push(`Erster PR bei ${ex.name}! 🏆`);
+      } else if (beatWeight && beat1RM) {
+        newPrMessages.push(`Doppelter PR bei ${ex.name}! (Max & 1RM) 🏆`);
+      } else if (beatWeight) {
+        newPrMessages.push(`Neuer Gewichts-PR bei ${ex.name}! (${maxWeightThisWorkout} kg) 🏆`);
+      } else if (beat1RM) {
+        newPrMessages.push(`Neuer 1RM-PR bei ${ex.name}! (${max1RMThisWorkout} kg) 🏆`);
+      }
     }
   });
 
@@ -276,6 +313,7 @@ export async function finishWorkout() {
 
   if (isBrowserEnv && DOM.workoutTimer) {
     clearInterval(timerInterval);
+    timerInterval = null;
     DOM.workoutTimer.style.display = 'none';
     switchView('history');
     showToast(isEditing ? 'Training aktualisiert!' : 'Training abgeschlossen!', 'success');
@@ -308,6 +346,7 @@ export async function addExerciseToActiveWorkout(exercise) {
     id: exercise.id,
     name: exercise.name,
     category: exercise.category,
+    measurementType: exercise.measurementType || 'reps',
     sets: [
       { weight: 0, reps: 0, completed: false }
     ]
@@ -387,7 +426,13 @@ export function loadActiveWorkoutState() {
       if (activeWorkout.isEditing) {
         DOM.workoutTimer.style.display = 'flex';
         DOM.workoutTimer.classList.remove('active');
-        DOM.timerText.textContent = `${activeWorkout.duration} min`;
+        let durationDisplay = `${activeWorkout.duration} min`;
+        if (activeWorkout.durationSeconds !== undefined) {
+          const m = Math.floor(activeWorkout.durationSeconds / 60);
+          const s = activeWorkout.durationSeconds % 60;
+          durationDisplay = `${m}m ${s}s`;
+        }
+        DOM.timerText.textContent = durationDisplay;
       } else {
         initTimer();
       }
@@ -405,11 +450,20 @@ export function editWorkout(workout) {
   saveActiveWorkoutState();
   
   if (isBrowserEnv) {
-    if (timerInterval) clearInterval(timerInterval);
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
     if (DOM.workoutTimer) {
       DOM.workoutTimer.style.display = 'flex';
       DOM.workoutTimer.classList.remove('active');
-      DOM.timerText.textContent = `${activeWorkout.duration} min`;
+      let durationDisplay = `${activeWorkout.duration} min`;
+      if (activeWorkout.durationSeconds !== undefined) {
+        const m = Math.floor(activeWorkout.durationSeconds / 60);
+        const s = activeWorkout.durationSeconds % 60;
+        durationDisplay = `${m}m ${s}s`;
+      }
+      DOM.timerText.textContent = durationDisplay;
     }
     switchView('workout');
   }
@@ -426,7 +480,17 @@ function initTimer() {
 
 export function updateTimerUI() {
   if (!activeWorkout) {
-    clearInterval(timerInterval);
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+    return;
+  }
+  if (activeWorkout.isEditing) {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
     return;
   }
   const ms = Date.now() - activeWorkout.startTime;

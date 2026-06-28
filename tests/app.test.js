@@ -472,6 +472,49 @@ QUnit.module('FitTrack Test Suite', hooks => {
       assert.notOk(timerState.isActive, 'Timer is stopped after finishing workout');
     });
 
+    QUnit.test('Time-based Exercise PRs and measurementType', assert => {
+      // 1. Check if default exercises like Plank are correctly initialized as time-based
+      const exercises = getExercises();
+      const plank = exercises.find(e => e.id === 'plank');
+      assert.ok(plank, 'Plank default exercise exists');
+      assert.equal(plank.measurementType, 'time', 'Plank has measurementType time');
+
+      const farmerWalk = exercises.find(e => e.id === 'farmer_walk');
+      assert.ok(farmerWalk, 'Farmer Walk default exercise exists');
+      assert.equal(farmerWalk.measurementType, 'time', 'Farmer Walk has measurementType time');
+
+      // 2. Add custom time-based exercise
+      const res = addExercise('Custom Time Run', 'Beine', 'time');
+      assert.equal(res.newEx.measurementType, 'time', 'Custom exercise saved as time-based');
+
+      // 3. Log a workout with a time-based exercise
+      saveWorkout({
+        id: 'wo_time_pr_test',
+        name: 'Time PR Test',
+        date: new Date().toISOString(),
+        duration: 20,
+        volume: 0,
+        exercises: [{
+          id: res.newEx.id,
+          name: 'Custom Time Run',
+          category: 'Beine',
+          measurementType: 'time',
+          sets: [
+            { weight: 10, reps: 60, completed: true },
+            { weight: 10, reps: 90, completed: true }
+          ]
+        }]
+      });
+
+      // 4. Verify PR is calculated as maxTime instead of 1RM
+      const prs = getPersonalRecords();
+      const runPR = prs[res.newEx.id];
+      assert.ok(runPR, 'PR exists for Custom Time Run');
+      assert.equal(runPR.maxTime, 90, 'Max time is 90s');
+      assert.equal(runPR.maxWeight, 10, 'Max weight is 10kg');
+      assert.notOk(runPR.max1RM, 'No max1RM calculated for time-based exercise');
+    });
+
   });
 
 });
